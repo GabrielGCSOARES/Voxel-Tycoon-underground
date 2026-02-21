@@ -1,0 +1,32 @@
+name: voxel-tycoon-underground CI
+
+on:
+  push:
+    branches: [ "main"] #"develop"
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      # Build da imagem Docker
+      - name: Build Docker image
+        run: docker build -t voxel-tycoon .
+
+      # Rodar lint dentro do container
+      - name: Run Lint
+        run: docker run voxel-tycoon pip install flake8 && docker run voxel-tycoon flake8 .
+
+      # Rodar testes
+      - name: Run Tests
+        run: docker run voxel-tycoon pip install pytest && docker run voxel-tycoon pytest
+
+      # Rodar aplicação (verifica build)
+      - name: Run App
+        run: docker run voxel-tycoon python main.py
