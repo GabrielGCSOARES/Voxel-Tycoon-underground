@@ -10,7 +10,7 @@ pygame.display.set_caption("Jogo Elementar - Pygame")
 
 pygame.mixer.music.load("assets/musicatema.wav")
 pygame.mixer.music.set_volume(0.5)
-pygame.mixer.music.play(-1) 
+pygame.mixer.music.play(-1)
 
 WHITE = (255, 255, 255)
 BLUE = (50, 100, 255)
@@ -39,5 +39,7 @@ while True:
     if keys[pygame.K_DOWN]:
         player_y += speed
     screen.fill(WHITE)
-    pygame.draw.rect(screen, BLUE, (player_x, player_y, player_size, player_size))
+    pygame.draw.rect(
+        screen, BLUE, (player_x, player_y, player_size, player_size)
+    )
     pygame.display.flip()
