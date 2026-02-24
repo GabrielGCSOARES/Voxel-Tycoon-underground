@@ -19,14 +19,14 @@ jobs:
       - name: Build Docker image
         run: docker build -t voxel-tycoon .
 
-      # Rodar lint dentro do container
+      # Rodar lint DENTRO do mesmo container
       - name: Run Lint
-        run: docker run voxel-tycoon pip install flake8 && docker run voxel-tycoon flake8 .
+        run: docker run --rm voxel-tycoon sh -c "pip install flake8 && flake8 ."
 
-      # Rodar testes
+      # Rodar testes DENTRO do mesmo container
       - name: Run Tests
-        run: docker run voxel-tycoon pip install pytest && docker run voxel-tycoon pytest
+        run: docker run --rm voxel-tycoon sh -c "pip install pytest && pytest"
 
       # Rodar aplicação (verifica build)
       - name: Run App
-        run: docker run voxel-tycoon python main.py
+        run: docker run --rm voxel-tycoon python main.py
