@@ -1,13 +1,12 @@
-# # Ignore audio files
-# *.wav
+# Python environment and cache
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
 
-# # Ignore assets folder
-# frontend/assets/
-
-# # Python cache
-# __pycache__/
-# *.pyc
-
-# # Build files
-# # dist/
-# # build/
+# Build and IDE files
+dist/
+build/
+.vscode/
+*.spec

@@ -10,7 +10,7 @@ pygame.display.set_caption("Jogo Elementar - Pygame")
 
 pygame.mixer.music.load("assets/musicatema.wav")
 pygame.mixer.music.set_volume(0.5)
-pygame.mixer.music.play(-1) #vai rodar infinitamente
+pygame.mixer.music.play(-1) 
 
 WHITE = (255, 255, 255)
 BLUE = (50, 100, 255)
@@ -25,12 +25,10 @@ FPS = 120
 
 while True:
     clock.tick(FPS)
-    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
-    
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT]:
         player_x -= speed
@@ -40,7 +38,6 @@ while True:
         player_y -= speed
     if keys[pygame.K_DOWN]:
         player_y += speed
-    
     screen.fill(WHITE)
     pygame.draw.rect(screen, BLUE, (player_x, player_y, player_size, player_size))
     pygame.display.flip()

@@ -21,7 +21,7 @@ jobs:
 
      # Rodar lint dentro da pasta frontend
       - name: Run Lint
-        run: docker run --rm voxel-tycoon sh -c "pip install flake8 && flake8 frontend/"
+        run: docker run --rm voxel-tycoon sh -c "pip install flake8 && flake8 frontend/ --exclude=venv,env,.venv"
 
       # Rodar testes dentro da pasta frontend
       - name: Run Tests
