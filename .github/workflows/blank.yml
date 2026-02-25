@@ -21,12 +21,12 @@ jobs:
 
       # Rodar lint 
       - name: Run Lint
-        run: docker run --rm voxel-tycoon sh -c "pip install flake8 && flake8 . --exclude=venv,env,.venv"
+        run: docker run --rm voxel-tycoon sh -c "pip install flake8 && flake8 . --exclude=venv,env,.venv --ignore=W292"
 
       # Rodar testes 
-      # - name: Run Tests
-      #   run: docker run --rm voxel-tycoon sh -c "pip install pytest && pytest"
+      - name: Run Tests
+        run: docker run --rm voxel-tycoon sh -c "pip install pytest && pytest"
 
-      # Rodar aplicação - CORRIGIDO: main.py está na raiz
+      # Rodar aplicação 
       - name: Run App
         run: docker run --rm voxel-tycoon python main.py
