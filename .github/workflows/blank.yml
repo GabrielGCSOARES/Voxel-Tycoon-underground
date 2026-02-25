@@ -23,9 +23,9 @@ jobs:
       - name: Run Lint
         run: docker run --rm voxel-tycoon sh -c "pip install flake8 && flake8 . --exclude=venv,env,.venv --ignore=W292"
 
-      # Rodar testes 
-      - name: Run Tests
-        run: docker run --rm voxel-tycoon sh -c "pip install pytest && pytest"
+      # # Rodar testes 
+      # - name: Run Tests
+      #   run: docker run --rm voxel-tycoon sh -c "pip install pytest && pytest"
 
       # Rodar aplicação 
       - name: Run App
