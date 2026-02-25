@@ -29,4 +29,4 @@ jobs:
 
       # Rodar aplicação 
       - name: Run App
-        run: docker run --rm voxel-tycoon python main.py
+        run: docker run --rm voxel-tycoon python frontend/main.py
