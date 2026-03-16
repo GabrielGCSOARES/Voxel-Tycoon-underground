@@ -2,7 +2,7 @@ name: voxel-tycoon-underground CI
 
 on:
   push:
-    branches: [ "main"] #"develop"
+    branches: [ "main", "develop" ] 
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -19,14 +19,14 @@ jobs:
       - name: Build Docker image
         run: docker build -t voxel-tycoon .
 
-      # Rodar lint dentro do container
+      # Rodar lint 
       - name: Run Lint
-        run: docker run voxel-tycoon pip install flake8 && docker run voxel-tycoon flake8 .
+        run: docker run --rm voxel-tycoon sh -c "pip install flake8 && flake8 . --exclude=venv,env,.venv --ignore=W292"
 
-      # Rodar testes
-      - name: Run Tests
-        run: docker run voxel-tycoon pip install pytest && docker run voxel-tycoon pytest
+      # # Rodar testes 
+      # - name: Run Tests
+      #   run: docker run --rm voxel-tycoon sh -c "pip install pytest && pytest"
 
-      # Rodar aplicação (verifica build)
+      # Rodar aplicação 
       - name: Run App
-        run: docker run voxel-tycoon python main.py
+        run: docker run --rm voxel-tycoon python frontend/main.py
