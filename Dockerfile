@@ -1,14 +1,34 @@
-# Usa uma imagem leve do Python
-FROM python:3.10-slim
+FROM python:3.10
 
-# Define a pasta de trabalho dentro do container
 WORKDIR /app
 
-# Copia todos os arquivos do seu PC para dentro do container
+# variáveis para evitar erros de audio e video
+ENV SDL_VIDEODRIVER=dummy
+ENV SDL_AUDIODRIVER=dummy
+ENV XDG_RUNTIME_DIR=/tmp/runtime-root
+
+RUN mkdir -p /tmp/runtime-root
+
+# instalar dependências do sistema necessárias para pygame
+RUN apt-get update && apt-get install -y \
+    python3-pygame \
+    libsdl2-dev \
+    libsdl2-image-dev \
+    libsdl2-mixer-dev \
+    libsdl2-ttf-dev \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# copiar dependências python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# copiar projeto
 COPY . .
 
-# Instala as ferramentas de teste que o seu workflow exige
-RUN pip install flake8 pytest
+WORKDIR /app/frontend
 
-# Comando opcional (apenas para documentar como rodar o app)
 CMD ["python", "main.py"]
