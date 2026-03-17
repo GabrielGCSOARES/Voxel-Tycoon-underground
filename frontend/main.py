@@ -4,18 +4,23 @@ from config import *
 from mundo import GerenciadorMundo
 from camera import Camera
 
+# Inicialização do Pygame
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Voxel Tycoon Underground")
 clock = pygame.time.Clock()
 
 font = pygame.font.SysFont("arial", 22)
 font_menu = pygame.font.SysFont("arial", 40)
 
+# Música de fundo
 if not pygame.mixer.music.get_busy():
     try:
         pygame.mixer.music.play(-1)
     except:
         pass
 
+# Instâncias e Variáveis Globais
 mundo = GerenciadorMundo()
 camera = Camera()
 arrastando = False
@@ -56,24 +61,33 @@ def construir(gx, gy):
         if CLICK_SOUND: CLICK_SOUND.play()
 
 def desenhar_painel():
+    # Fundo do painel
     pygame.draw.rect(screen, (30, 34, 40), (MAP_WIDTH, 0, PANEL_WIDTH, HEIGHT))
 
-    cor_camada = VERDE if mundo.camada_atual == "superficie" else DOURADO
-    screen.blit(font.render(f"MAPA: {mundo.camada_atual.upper()}", True, cor_camada), (MAP_WIDTH + 20, 20))
+    # --- Título do Jogo no Painel ---
+    titulo_painel = font.render("V.T. UNDERGROUND", True, DOURADO)
+    screen.blit(titulo_painel, (MAP_WIDTH + (PANEL_WIDTH // 2 - titulo_painel.get_width() // 2), 15))
+    pygame.draw.line(screen, (70, 70, 80), (MAP_WIDTH + 15, 45), (WIDTH - 15, 45), 2)
 
-    for i, txt in enumerate([
+    # Informação da Camada
+    cor_camada = VERDE if mundo.camada_atual == "superficie" else DOURADO
+    screen.blit(font.render(f"MAPA: {mundo.camada_atual.upper()}", True, cor_camada), (MAP_WIDTH + 20, 65))
+
+    # Recursos
+    recursos = [
         f"Dinheiro: ${int(dinheiro)}",
         f"População: {populacao}",
         f"Nível: {nivel}",
         f"XP: {xp}/{xp_max}"
-    ]):
-        screen.blit(font.render(txt, True, BRANCO), (MAP_WIDTH + 20, 70 + i*30))
+    ]
+    for i, txt in enumerate(recursos):
+        screen.blit(font.render(txt, True, BRANCO), (MAP_WIDTH + 20, 105 + i*30))
 
-    screen.blit(font.render("CONSTRUIR (Teclas 1-6):", True, (150, 150, 150)), (MAP_WIDTH + 20, 220))
-
+    # Menu de Construção
+    screen.blit(font.render("CONSTRUIR (1-6):", True, (150, 150, 150)), (MAP_WIDTH + 20, 250))
     for i, item in enumerate(ITENS):
         cor = DOURADO if i == selected_index else BRANCO
-        screen.blit(font.render(f"{i+1}-{item.upper()} (${CUSTOS[item]})", True, cor), (MAP_WIDTH + 20, 250 + i*35))
+        screen.blit(font.render(f"{i+1}-{item.upper()} (${CUSTOS[item]})", True, cor), (MAP_WIDTH + 20, 285 + i*35))
 
 # ---------------- LOOP PRINCIPAL ----------------
 while True:
@@ -83,6 +97,7 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit(); sys.exit()
 
+        # Comandos de Teclado
         if event.type == pygame.KEYDOWN:
             if pygame.K_1 <= event.key <= pygame.K_6:
                 selected_index = event.key - pygame.K_1
@@ -91,55 +106,72 @@ while True:
             if event.key == pygame.K_r and estado == "jogo":
                 camera.resetar()
 
-        # Iniciar arrasto com botão direito
-        if event.type == pygame.MOUSEBUTTONDOWN and estado == "jogo":
-            if mouse[0] < MAP_WIDTH and event.button == 3:
-                arrastando = True
-                drag_start = mouse
-                drag_offset_start = (camera.offset_x, camera.offset_y)
-
-        # Soltar arrasto
-        if event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 3:
-                arrastando = False
-
-        # Mover câmera enquanto arrasta
-        if event.type == pygame.MOUSEMOTION and arrastando:
-            dx = mouse[0] - drag_start[0]
-            dy = mouse[1] - drag_start[1]
-            camera.offset_x = drag_offset_start[0] + dx
-            camera.offset_y = drag_offset_start[1] + dy
-            # Aplica limites
-            camera.offset_x = max(-(COLS * GRID_SIZE - MAP_WIDTH), min(0, camera.offset_x))
-            camera.offset_y = max(-(ROWS * GRID_SIZE - HEIGHT),    min(0, camera.offset_y))
-
-        # Clique esquerdo: construir
-        if event.type == pygame.MOUSEBUTTONDOWN and estado == "jogo":
-            if mouse[0] < MAP_WIDTH and event.button == 1:
-                gx, gy = camera.tela_para_mundo(mouse[0], mouse[1])
-                grid_atual = mundo.get_grid_ativo()
-                if 0 <= gx < COLS and 0 <= gy < ROWS:
-                    if grid_atual[gy][gx] == "elevador":
-                        mundo.alternar_camada()
-                        if CLICK_SOUND: CLICK_SOUND.play()
-                    else:
-                        construir(gx, gy)
-
+        # --- Lógica de Mouse: MENU ---
         if event.type == pygame.MOUSEBUTTONDOWN and estado == "menu":
-            if WIDTH//2 - 150 < mouse[0] < WIDTH//2 + 150 and 350 < mouse[1] < 420:
+            # Botão INICIAR (Centralizado)
+            if WIDTH//2 - 150 < mouse[0] < WIDTH//2 + 150 and 330 < mouse[1] < 390:
                 estado = "jogo"
+            # Botão SAIR
+            elif WIDTH//2 - 150 < mouse[0] < WIDTH//2 + 150 and 410 < mouse[1] < 470:
+                pygame.quit(); sys.exit()
 
+        # --- Lógica de Mouse: JOGO ---
+        if estado == "jogo":
+            # Arrastar câmera (Botão Direito)
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if mouse[0] < MAP_WIDTH and event.button == 3:
+                    arrastando = True
+                    drag_start = mouse
+                    drag_offset_start = (camera.offset_x, camera.offset_y)
+
+            if event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 3:
+                    arrastando = False
+
+            if event.type == pygame.MOUSEMOTION and arrastando:
+                dx = mouse[0] - drag_start[0]
+                dy = mouse[1] - drag_start[1]
+                camera.offset_x = drag_offset_start[0] + dx
+                camera.offset_y = drag_offset_start[1] + dy
+                camera.offset_x = max(-(COLS * GRID_SIZE - MAP_WIDTH), min(0, camera.offset_x))
+                camera.offset_y = max(-(ROWS * GRID_SIZE - HEIGHT), min(0, camera.offset_y))
+
+            # Construir ou Alternar Camada (Botão Esquerdo)
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if mouse[0] < MAP_WIDTH:
+                    gx, gy = camera.tela_para_mundo(mouse[0], mouse[1])
+                    grid_atual = mundo.get_grid_ativo()
+                    if 0 <= gx < COLS and 0 <= gy < ROWS:
+                        if grid_atual[gy][gx] == "elevador":
+                            mundo.alternar_camada()
+                            if CLICK_SOUND: CLICK_SOUND.play()
+                        else:
+                            construir(gx, gy)
+
+    # --- RENDERIZAÇÃO ---
     if estado == "menu":
         screen.fill((20, 20, 30))
-        txt = font_menu.render("VOXEL TYCOON: UNDERGROUND", True, DOURADO)
-        screen.blit(txt, (WIDTH//2 - txt.get_width()//2, 200))
-        pygame.draw.rect(screen, CINZA, (WIDTH//2-150, 350, 300, 70), border_radius=8)
-        screen.blit(font_menu.render("INICIAR", True, BRANCO), (WIDTH//2 - font_menu.size("INICIAR")[0]//2, 365))
+        
+        # Título Principal
+        txt_titulo = font_menu.render("VOXEL TYCOON: UNDERGROUND", True, DOURADO)
+        screen.blit(txt_titulo, (WIDTH//2 - txt_titulo.get_width()//2, 200))
+        
+        # Desenho Botão INICIAR
+        pygame.draw.rect(screen, (50, 120, 50), (WIDTH//2-150, 330, 300, 60), border_radius=8)
+        txt_iniciar = font_menu.render("INICIAR", True, BRANCO)
+        screen.blit(txt_iniciar, (WIDTH//2 - txt_iniciar.get_width()//2, 335))
+
+        # Desenho Botão SAIR
+        pygame.draw.rect(screen, (150, 50, 50), (WIDTH//2-150, 410, 300, 60), border_radius=8)
+        txt_sair = font_menu.render("SAIR", True, BRANCO)
+        screen.blit(txt_sair, (WIDTH//2 - txt_sair.get_width()//2, 415))
 
     elif estado == "jogo":
+        # Lógica de Economia (Renda por frame aproximada a 60 FPS)
         renda = (contagem_global["casa"]*2 + contagem_global["fazenda"]*10 + contagem_global["silo"]*25) / 60
         dinheiro += renda
 
+        # Lógica de Level Up
         if xp >= xp_max:
             nivel += 1
             xp = 0
