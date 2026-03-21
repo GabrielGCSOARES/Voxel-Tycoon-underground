@@ -5,7 +5,8 @@ pygame.mixer.init()
 
 # ---------------- TELA E GRID ----------------
 info = pygame.display.Info()
-WIDTH, HEIGHT = info.current_w, info.current_h
+WIDTH = info.current_w if info.current_w > 0 else 1280
+HEIGHT = info.current_h if info.current_h > 0 else 720
 PANEL_WIDTH = int(WIDTH * 0.20)
 GRID_SIZE = 48
 COLS, ROWS = 50, 50
@@ -17,39 +18,67 @@ DOURADO, VERDE = (255, 215, 0), (50, 200, 80)
 
 # ---------------- TELA ----------------
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("V.T. Underground")
+
+# ---------------- RESOLUÇÃO DE CAMINHOS ----------------
+# Agora apontando para a pasta assets que está JUNTO com este arquivo config.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 
 # ---------------- ÁUDIO ----------------
+CLICK_SOUND = None
 try:
-    if os.path.exists("assets/musicatema.wav"):
-        pygame.mixer.music.load("assets/musicatema.wav")
+    musica_path = os.path.join(ASSETS_DIR, "musicatema.wav")
+    if os.path.exists(musica_path):
+        pygame.mixer.music.load(musica_path)
         pygame.mixer.music.set_volume(0.4)
-    if os.path.exists("assets/click.wav"):
-        CLICK_SOUND = pygame.mixer.Sound("assets/click.wav")
-    else:
-        CLICK_SOUND = None
-except:
-    CLICK_SOUND = None
+    
+    click_path = os.path.join(ASSETS_DIR, "click.wav")
+    if os.path.exists(click_path):
+        CLICK_SOUND = pygame.mixer.Sound(click_path)
+except Exception as e:
+    print(f"⚠️ Aviso sobre áudio: {e}")
 
 # ---------------- IMAGENS ----------------
 def carregar_imagens():
     def escalar(img): return pygame.transform.scale(img, (GRID_SIZE, GRID_SIZE))
     IMAGENS = {}
-    try:
-        img_grama = pygame.image.load("assets/grama.png").convert_alpha()
-        IMAGENS["grama"] = escalar(img_grama)
-        IMAGENS["pedra"] = escalar(pygame.image.load("assets/pedra.png").convert_alpha()) if os.path.exists("assets/pedra.png") else escalar(img_grama)
-        IMAGENS["casa"] = escalar(pygame.image.load("assets/casa.png").convert_alpha())
-        IMAGENS["fazenda"] = escalar(pygame.image.load("assets/fazenda.png").convert_alpha())
-        IMAGENS["silo"] = escalar(pygame.image.load("assets/silo.png").convert_alpha())
-        IMAGENS["cachoeira"] = escalar(pygame.image.load("assets/cachoeira.png").convert_alpha())
-        IMAGENS["palacio"] = escalar(pygame.image.load("assets/palacio.png").convert_alpha())
-        IMAGENS["elevador"] = escalar(pygame.image.load("assets/entrace cave.png").convert_alpha())
-    except:
-        for k in ["grama","pedra","casa","fazenda","silo","cachoeira","palacio","elevador"]:
-            IMAGENS[k] = pygame.Surface((GRID_SIZE, GRID_SIZE))
-        IMAGENS["grama"].fill((34,139,34))
-        IMAGENS["pedra"].fill((100,100,100))
-        IMAGENS["elevador"].fill((255,215,0))
+    
+    # Fallbacks iniciais
+    for k in ["grama","pedra","casa","fazenda","silo","cachoeira","palacio","elevador"]:
+        surf = pygame.Surface((GRID_SIZE, GRID_SIZE))
+        if k == "grama": surf.fill((34, 139, 34))
+        elif k == "pedra": surf.fill((100, 100, 100))
+        elif k == "elevador": surf.fill((255, 215, 0))
+        else: surf.fill((255, 0, 255)) 
+        IMAGENS[k] = surf
+
+    arquivos = {
+        "grama": "grama.png",
+        "pedra": "pedra.png",
+        "casa": "casa.png",
+        "fazenda": "fazenda.png",
+        "silo": "silo.png",
+        "cachoeira": "cachoeira.png",
+        "palacio": "palacio.png",
+        "elevador": "entrace cave.png"
+    }
+
+    print(f"\n--- 🔎 BUSCANDO ASSETS EM: {ASSETS_DIR} ---\n")
+
+    for chave, nome_arquivo in arquivos.items():
+        caminho_completo = os.path.join(ASSETS_DIR, nome_arquivo)
+
+        try:
+            if os.path.exists(caminho_completo):
+                img = pygame.image.load(caminho_completo).convert_alpha()
+                IMAGENS[chave] = escalar(img)
+                print(f"✅ {nome_arquivo} carregado.")
+            else:
+                print(f"❌ NÃO ENCONTRADO: {caminho_completo}")
+        except Exception as e:
+            print(f"❌ ERRO AO ABRIR {nome_arquivo}: {e}")
+
     return IMAGENS
 
 IMAGENS = carregar_imagens()
