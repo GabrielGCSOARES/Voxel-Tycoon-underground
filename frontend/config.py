@@ -1,5 +1,5 @@
-import pygame
-import os
+import pygame, os
+
 pygame.init()
 pygame.mixer.init()
 
@@ -7,21 +7,16 @@ pygame.mixer.init()
 info = pygame.display.Info()
 WIDTH, HEIGHT = info.current_w, info.current_h
 PANEL_WIDTH = int(WIDTH * 0.20)
-
-# Tile pequeno = mapa grande
 GRID_SIZE = 48
-
-# Mapa muito maior que a tela
 COLS, ROWS = 50, 50
-
-# Área visível na tela
 MAP_WIDTH = WIDTH - PANEL_WIDTH
-
-screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 
 # ---------------- CORES ----------------
 BRANCO, PRETO, CINZA = (255, 255, 255), (0, 0, 0), (40, 40, 40)
 DOURADO, VERDE = (255, 215, 0), (50, 200, 80)
+
+# ---------------- TELA ----------------
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
 # ---------------- ÁUDIO ----------------
 try:
@@ -36,28 +31,30 @@ except:
     CLICK_SOUND = None
 
 # ---------------- IMAGENS ----------------
-def escalar(img): return pygame.transform.scale(img, (GRID_SIZE, GRID_SIZE))
+def carregar_imagens():
+    def escalar(img): return pygame.transform.scale(img, (GRID_SIZE, GRID_SIZE))
+    IMAGENS = {}
+    try:
+        img_grama = pygame.image.load("assets/grama.png").convert_alpha()
+        IMAGENS["grama"] = escalar(img_grama)
+        IMAGENS["pedra"] = escalar(pygame.image.load("assets/pedra.png").convert_alpha()) if os.path.exists("assets/pedra.png") else escalar(img_grama)
+        IMAGENS["casa"] = escalar(pygame.image.load("assets/casa.png").convert_alpha())
+        IMAGENS["fazenda"] = escalar(pygame.image.load("assets/fazenda.png").convert_alpha())
+        IMAGENS["silo"] = escalar(pygame.image.load("assets/silo.png").convert_alpha())
+        IMAGENS["cachoeira"] = escalar(pygame.image.load("assets/cachoeira.png").convert_alpha())
+        IMAGENS["palacio"] = escalar(pygame.image.load("assets/palacio.png").convert_alpha())
+        IMAGENS["elevador"] = escalar(pygame.image.load("assets/entrace cave.png").convert_alpha())
+    except:
+        for k in ["grama","pedra","casa","fazenda","silo","cachoeira","palacio","elevador"]:
+            IMAGENS[k] = pygame.Surface((GRID_SIZE, GRID_SIZE))
+        IMAGENS["grama"].fill((34,139,34))
+        IMAGENS["pedra"].fill((100,100,100))
+        IMAGENS["elevador"].fill((255,215,0))
+    return IMAGENS
 
-try:
-    img_grama = pygame.image.load("assets/grama.png").convert_alpha()
-    IMAGENS = {
-        "grama":     escalar(img_grama),
-        "pedra":     escalar(pygame.image.load("assets/pedra.png").convert_alpha()) if os.path.exists("assets/pedra.png") else escalar(img_grama),
-        "casa":      escalar(pygame.image.load("assets/casa.png").convert_alpha()),
-        "fazenda":   escalar(pygame.image.load("assets/fazenda.png").convert_alpha()),
-        "silo":      escalar(pygame.image.load("assets/silo.png").convert_alpha()),
-        "cachoeira": escalar(pygame.image.load("assets/cachoeira.png").convert_alpha()),
-        "palacio":   escalar(pygame.image.load("assets/palacio.png").convert_alpha()),
-        "elevador":  escalar(pygame.image.load("assets/entrace cave.png").convert_alpha()),
-    }
-except Exception as e:
-    print(f"Aviso: Algumas imagens faltaram. Erro: {e}")
-    IMAGENS = {k: pygame.Surface((GRID_SIZE, GRID_SIZE)) for k in ["grama", "pedra", "casa", "fazenda", "silo", "cachoeira", "palacio", "elevador"]}
-    IMAGENS["grama"].fill((34, 139, 34))
-    IMAGENS["pedra"].fill((100, 100, 100))
-    IMAGENS["elevador"].fill(DOURADO)
+IMAGENS = carregar_imagens()
 
 # ---------------- DADOS ----------------
 ITENS   = ["casa", "fazenda", "elevador", "silo", "cachoeira", "palacio"]
-CUSTOS  = {"casa": 100, "fazenda": 150, "elevador": 250, "silo": 200, "cachoeira": 300, "palacio": 1000}
-XP_ITENS = {"casa": 20, "fazenda": 40, "elevador": 50, "silo": 80, "cachoeira": 120, "palacio": 500}
+CUSTOS  = {"casa":100, "fazenda":150, "elevador":250, "silo":200, "cachoeira":300, "palacio":1000}
+XP_ITENS= {"casa":20, "fazenda":40, "elevador":50, "silo":80, "cachoeira":120, "palacio":500}
