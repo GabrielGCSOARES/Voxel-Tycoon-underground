@@ -21,9 +21,9 @@ DOURADO, VERDE = (255, 215, 0), (50, 200, 80)
 
 # ---------------- ÁUDIO ----------------
 try:
-    if os.path.exists("assets/musicatema.wav"):
-        pygame.mixer.music.load("assets/musicatema.wav")
-        pygame.mixer.music.set_volume(0.4)
+    if os.path.exists("assets/musica.wav"):
+        pygame.mixer.music.load("assets/musica.wav")
+        pygame.mixer.music.set_volume(0.2)
     
     if os.path.exists("assets/click.wav"):
         CLICK_SOUND = pygame.mixer.Sound("assets/click.wav")
