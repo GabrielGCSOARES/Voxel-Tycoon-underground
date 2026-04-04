@@ -21,7 +21,6 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("V.T. Underground")
 
 # ---------------- RESOLUÇÃO DE CAMINHOS ----------------
-# Agora apontando para a pasta assets que está JUNTO com este arquivo config.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 
@@ -87,3 +86,4 @@ IMAGENS = carregar_imagens()
 ITENS   = ["casa", "fazenda", "elevador", "silo", "cachoeira", "palacio"]
 CUSTOS  = {"casa":100, "fazenda":150, "elevador":250, "silo":200, "cachoeira":300, "palacio":1000}
 XP_ITENS= {"casa":20, "fazenda":40, "elevador":50, "silo":80, "cachoeira":120, "palacio":500}
+RENDA_BASE = {"casa": 0.02, "fazenda": 0.05, "elevador": 0.0, "silo": 0.1, "cachoeira": 0.2, "palacio": 1.0}
