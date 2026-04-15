@@ -87,3 +87,32 @@ ITENS   = ["casa", "fazenda", "elevador", "silo", "cachoeira", "palacio"]
 CUSTOS  = {"casa":100, "fazenda":150, "elevador":250, "silo":200, "cachoeira":300, "palacio":1000}
 XP_ITENS= {"casa":20, "fazenda":40, "elevador":50, "silo":80, "cachoeira":120, "palacio":500}
 RENDA_BASE = {"casa": 0.02, "fazenda": 0.05, "elevador": 0.0, "silo": 0.1, "cachoeira": 0.2, "palacio": 1.0}
+
+ITENS_CAVERNA = ["mineracao", "cristal", "forja", "laboratorio", "reator", "cripto"]
+
+CUSTOS.update({
+    "mineracao":   2_000,
+    "cristal":     5_000,
+    "forja":       8_000,
+    "laboratorio": 15_000,
+    "reator":      40_000,
+    "cripto":      100_000,
+})
+
+XP_ITENS.update({
+    "mineracao":   200,
+    "cristal":     500,
+    "forja":       800,
+    "laboratorio": 1_500,
+    "reator":      4_000,
+    "cripto":      10_000,
+})
+
+RENDA_BASE.update({
+    "mineracao":   0.5,    
+    "cristal":     1.5,    
+    "forja":       3.0,    
+    "laboratorio": 7.0,    
+    "reator":      20.0,   
+    "cripto":      60.0,   
+})
