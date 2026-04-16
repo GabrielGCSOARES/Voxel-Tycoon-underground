@@ -1,32 +1,113 @@
-name: voxel-tycoon-underground CI
+name: CI Pipeline
 
 on:
   push:
-    branches: [ "main", "develop" ] 
+    branches: ["main", "develop"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
-jobs:
-  build-test:
-    runs-on: ubuntu-latest
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
+env:
+  IMAGE_NAME: voxel-tycoon
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout do código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # Build da imagem Docker
-      - name: Build Docker image
-        run: docker build -t voxel-tycoon .
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
 
-      # Rodar lint 
-      - name: Run Lint
-        run: docker run --rm voxel-tycoon sh -c "pip install flake8 && flake8 . --exclude=venv,env,.venv --ignore=W292"
+      - name: Install lint dependencies
+        run: pip install flake8
 
-      # # Rodar testes 
-      # - name: Run Tests
-      #   run: docker run --rm voxel-tycoon sh -c "pip install pytest && pytest"
+      - name: Run flake8
+        run: flake8 . --exclude=venv,env,.venv --ignore=W292 --format='%(path)s:%(row)d:%(col)d: %(code)s %(text)s'
 
-      # Rodar aplicação 
-      - name: Run App
-        run: docker run --rm voxel-tycoon python frontend/main.py
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-cov
+
+      - name: Run tests
+        run: pytest --tb=short --cov=. --cov-report=xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+          retention-days: 1
+
+  smoke-test:
+    name: Smoke test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load --input /tmp/image.tar
+
+      - name: Run application smoke test
+        run: |
+          docker run --rm \
+            --name voxel-smoke \
+            ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            python frontend/main.py
