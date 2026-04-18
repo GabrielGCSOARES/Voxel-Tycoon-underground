@@ -17,7 +17,7 @@ except:
 # ---------------- ESTADO DO JOGO ----------------
 mundo = GerenciadorMundo()
 camera = Camera()
-gerenciador_npcs = GerenciadorNPCs(quantidade=15)
+gerenciador_npcs = GerenciadorNPCs()
 estado = "menu"
 dinheiro, populacao, nivel, xp, xp_max = 500, 0, 1, 0, 100
 renda_passiva = 0.0
@@ -182,9 +182,8 @@ while True:
                                     grid[gy][gx]    = item
                                     grid_up[gy][gx] = 1
                                     renda_passiva  += RENDA_BASE[item]
-                                # Após grid[gy][gx] = item na caverna
-                                if mundo.camada_atual == "caverna":
-                                    gerenciador_npcs.adicionar_npc_caverna()
+                                    gerenciador_npcs.adicionar_npc(mundo.camada_atual, gx, gy)
+
                                 dinheiro -= CUSTOS[item]
                                 xp       += XP_ITENS[item]
                                 if CLICK_SOUND: CLICK_SOUND.play()
@@ -213,7 +212,7 @@ while True:
     elif estado == "jogo":
         dinheiro += renda_passiva
         mundo.desenhar(screen, camera)
-        gerenciador_npcs.atualizar(mundo.camada_atual)
+        gerenciador_npcs.atualizar(mundo.camada_atual, mundo.get_grid_ativo())
         gerenciador_npcs.desenhar(screen, camera, mundo.camada_atual)
         desenhar_painel()
 

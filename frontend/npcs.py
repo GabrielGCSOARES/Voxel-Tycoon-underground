@@ -17,24 +17,34 @@ class NPC:
         # Tempo até escolher novo destino
         self.timer_destino = 0
 
-    def _novo_destino(self):
-        """Escolhe uma célula aleatória próxima como destino"""
-        alcance = 5
-        gx = int(self.x // GRID_SIZE)
-        gy = int(self.y // GRID_SIZE)
+    def _novo_destino(self, grid):
+        """Escolhe uma construção aleatória no grid como destino. Se não houver, anda ao acaso."""
+        construcoes = []
+        for gy in range(ROWS):
+            for gx in range(COLS):
+                if grid[gy][gx] not in ["grama", "pedra", "elevador"]:
+                    construcoes.append((gx, gy))
 
-        nx = random.randint(max(0, gx - alcance), min(COLS - 1, gx + alcance))
-        ny = random.randint(max(0, gy - alcance), min(ROWS - 1, gy + alcance))
+        if construcoes:
+            gx, gy = random.choice(construcoes)
+            self.dest_x = gx * GRID_SIZE + random.randint(GRID_SIZE // 4, 3 * GRID_SIZE // 4)
+            self.dest_y = gy * GRID_SIZE + random.randint(GRID_SIZE // 4, 3 * GRID_SIZE // 4)
+        else:
+            alcance = 5
+            gx = int(self.x // GRID_SIZE)
+            gy = int(self.y // GRID_SIZE)
+            nx = random.randint(max(0, gx - alcance), min(COLS - 1, gx + alcance))
+            ny = random.randint(max(0, gy - alcance), min(ROWS - 1, gy + alcance))
+            self.dest_x = nx * GRID_SIZE + GRID_SIZE // 2
+            self.dest_y = ny * GRID_SIZE + GRID_SIZE // 2
 
-        self.dest_x = nx * GRID_SIZE + GRID_SIZE // 2
-        self.dest_y = ny * GRID_SIZE + GRID_SIZE // 2
         self.timer_destino = random.randint(60, 180)  # pausa em frames antes de mover de novo
 
-    def atualizar(self):
+    def atualizar(self, grid):
         self.timer_destino -= 1
 
         if self.timer_destino <= 0:
-            self._novo_destino()
+            self._novo_destino(grid)
 
         # Move em direção ao destino
         dx = self.dest_x - self.x
@@ -81,32 +91,25 @@ class GerenciadorNPCs:
         (100, 150, 200),  # azul
     ]
 
-    def __init__(self, quantidade=10):
-        self.npcs_superficie = self._criar_npcs(quantidade)
-        self.npcs_caverna    = []  # caverna começa sem NPCs
-        self.quantidade_base = quantidade
+    def __init__(self):
+        self.npcs_superficie = []
+        self.npcs_caverna    = []
 
-    def _criar_npcs(self, quantidade):
-        npcs = []
-        for _ in range(quantidade):
-            x   = random.randint(0, COLS - 1)
-            y   = random.randint(0, ROWS - 1)
+    def adicionar_npc(self, camada, x, y):
+        """Chame isso quando o jogador construir algo no mapa"""
+        if camada == "superficie":
             cor = random.choice(self.CORES)
             vel = random.uniform(0.8, 2.0)
-            npcs.append(NPC(x, y, cor, vel))
-        return npcs
+            self.npcs_superficie.append(NPC(x, y, cor, vel))
+        else:
+            cor = (100, 200, 180)  # cor diferente para NPCs da caverna
+            vel = random.uniform(0.5, 1.2)
+            self.npcs_caverna.append(NPC(x, y, cor, vel))
 
-    def adicionar_npc_caverna(self):
-        """Chame isso quando o jogador construir algo na caverna"""
-        x   = random.randint(0, COLS - 1)
-        y   = random.randint(0, ROWS - 1)
-        cor = (100, 200, 180)  # cor diferente para NPCs da caverna
-        self.npcs_caverna.append(NPC(x, y, cor, random.uniform(0.5, 1.2)))
-
-    def atualizar(self, camada_atual):
+    def atualizar(self, camada_atual, grid):
         lista = self.npcs_superficie if camada_atual == "superficie" else self.npcs_caverna
         for npc in lista:
-            npc.atualizar()
+            npc.atualizar(grid)
 
     def desenhar(self, screen, camera, camada_atual):
         lista = self.npcs_superficie if camada_atual == "superficie" else self.npcs_caverna
