@@ -1,4 +1,4 @@
-import pygame, sys, os
+import pygame, sys, os, math
 from config import *
 from mundo import GerenciadorMundo
 from camera import Camera
@@ -28,6 +28,8 @@ drag_start = (0, 0)
 drag_offset_start = (0, 0)
 
 construcao_selecionada = None
+mensagem_tela = ""
+tempo_mensagem = 0
 
 # ---------------- AUXILIARES DE UI ----------------
 def desenhar_botao_menu(texto, y_pos, mouse_pos):
@@ -54,13 +56,14 @@ def desenhar_painel():
     recursos = [
         f"Dinheiro: ${int(dinheiro)}",
         f"Ganho: ${ganho_segundo:.1f}/s",
-        f"População: {populacao}",
-        f"XP: {xp}/{xp_max}"
+        f"Nível: {nivel}",
+        f"XP: {xp}/{xp_max}",
+        f"População: {populacao}"
     ]
     for i, txt in enumerate(recursos):
         screen.blit(font.render(txt, True, BRANCO), (MAP_WIDTH + 20, 105 + i * 30))
 
-    lista_ativa = ITENS_CAVERNA if mundo.camada_atual == "caverna" else ITENS
+    lista_ativa = ITENS_CAVERNA if mundo.camada_atual != "superficie" else ITENS
     screen.blit(font.render("CONSTRUIR (1-6):", True, (150, 150, 150)), (MAP_WIDTH + 20, 270))
     for i, item in enumerate(lista_ativa):
         custo = CUSTOS[item]
@@ -114,7 +117,25 @@ def desenhar_modal_upgrade():
 # ---------------- LOOP PRINCIPAL ----------------
 while True:
     mouse_pos = pygame.mouse.get_pos()
-    screen.fill((15, 15, 20))
+
+    tempo = pygame.time.get_ticks() / 1000.0
+    if estado == "jogo" and mundo.camada_atual == "superficie":
+        screen.fill((20, 100, 150))
+        espacamento_y, espacamento_x = 40, 60
+        start_y = int(camera.offset_y) % espacamento_y
+        start_x = int(camera.offset_x) % espacamento_x
+        for y in range(start_y - espacamento_y, HEIGHT + espacamento_y, espacamento_y):
+            mundo_y = y - camera.offset_y
+            for x in range(start_x - espacamento_x, MAP_WIDTH + espacamento_x, espacamento_x):
+                mundo_x = x - camera.offset_x
+                deslocamento_x = math.sin(tempo * 1.5 + mundo_y * 0.05) * 15
+                deslocamento_y = math.cos(tempo * 2.0 + mundo_x * 0.05) * 8
+                onda_x = x + deslocamento_x
+                onda_y = y + deslocamento_y
+                pygame.draw.line(screen, (40, 140, 190), (onda_x, onda_y), (onda_x + 20, onda_y), 3)
+                pygame.draw.line(screen, (60, 160, 210), (onda_x + 5, onda_y + 3), (onda_x + 15, onda_y + 3), 2)
+    else:
+        screen.fill((15, 15, 20))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -167,17 +188,33 @@ while True:
                         item_clicado = grid[gy][gx]
 
                         if item_clicado == "elevador":
-                            mundo.alternar_camada()
+                            if mundo.camada_atual == "superficie":
+                                if (gx, gy) in mundo.elevadores_cantos:
+                                    elev_info = mundo.elevadores_cantos[(gx, gy)]
+                                    if nivel >= elev_info["nivel_req"]:
+                                        mundo.alternar_camada(elev_info["id"])
+                                    else:
+                                        mensagem_tela = f"Nível {elev_info['nivel_req']} necessário!"
+                                        tempo_mensagem = 120
+                                        if CLICK_SOUND: CLICK_SOUND.play()
+                                else:
+                                    mundo.alternar_camada(1)
+                            else:
+                                mundo.alternar_camada()
                         elif item_clicado != mundo.get_base_tile():
                             construcao_selecionada = (gx, gy, item_clicado, grid_up[gy][gx])
                             if CLICK_SOUND: CLICK_SOUND.play()
                         else:
-                            lista_ativa = ITENS_CAVERNA if mundo.camada_atual == "caverna" else ITENS
+                            lista_ativa = ITENS_CAVERNA if mundo.camada_atual != "superficie" else ITENS
                             item = lista_ativa[selected_index]
                             if dinheiro >= CUSTOS[item]:
                                 if item == "elevador":
                                     mundo.superficie[gy][gx] = "elevador"
-                                    mundo.caverna[gy][gx]    = "elevador"
+                                    if mundo.camada_atual == "superficie":
+                                        mundo.cavernas[1][gy][gx] = "elevador"
+                                    else:
+                                        cid = int(mundo.camada_atual.split("_")[1])
+                                        mundo.cavernas[cid][gy][gx] = "elevador"
                                 else:
                                     grid[gy][gx]    = item
                                     grid_up[gy][gx] = 1
@@ -200,6 +237,7 @@ while True:
     if arrastando and not construcao_selecionada:
         camera.offset_x = drag_offset_start[0] + (mouse_pos[0] - drag_start[0])
         camera.offset_y = drag_offset_start[1] + (mouse_pos[1] - drag_start[1])
+        camera.limitar()
 
     # ---------------- RENDERIZAÇÃO ----------------
     if estado == "menu":
@@ -211,10 +249,21 @@ while True:
 
     elif estado == "jogo":
         dinheiro += renda_passiva
+        
+        if xp >= xp_max:
+            xp -= xp_max
+            nivel += 1
+            xp_max = int(xp_max * 1.5)
+
         mundo.desenhar(screen, camera)
         gerenciador_npcs.atualizar(mundo.camada_atual, mundo.get_grid_ativo())
         gerenciador_npcs.desenhar(screen, camera, mundo.camada_atual)
         desenhar_painel()
+
+        if tempo_mensagem > 0:
+            txt = font_menu.render(mensagem_tela, True, (255, 50, 50))
+            screen.blit(txt, (MAP_WIDTH // 2 - txt.get_width() // 2, HEIGHT // 2 - txt.get_height() // 2))
+            tempo_mensagem -= 1
 
         if construcao_selecionada:
             s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)

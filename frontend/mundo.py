@@ -18,19 +18,53 @@ class GerenciadorMundo:
 
     def reset(self):
         self.superficie = [["grama" for _ in range(COLS)] for _ in range(ROWS)]
-        self.caverna = [["pedra" for _ in range(COLS)] for _ in range(ROWS)]
+        self.cavernas = {
+            1: [["pedra" for _ in range(COLS)] for _ in range(ROWS)],
+            2: [["pedra" for _ in range(COLS)] for _ in range(ROWS)],
+            3: [["pedra" for _ in range(COLS)] for _ in range(ROWS)],
+            4: [["pedra" for _ in range(COLS)] for _ in range(ROWS)]
+        }
         self.upgrades_superficie = [[0 for _ in range(COLS)] for _ in range(ROWS)]
-        self.upgrades_caverna = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+        self.upgrades_cavernas = {
+            1: [[0 for _ in range(COLS)] for _ in range(ROWS)],
+            2: [[0 for _ in range(COLS)] for _ in range(ROWS)],
+            3: [[0 for _ in range(COLS)] for _ in range(ROWS)],
+            4: [[0 for _ in range(COLS)] for _ in range(ROWS)]
+        }
         self.camada_atual = "superficie"
+        self.elevadores_cantos = {
+            (0, 0): {"id": 1, "nivel_req": 5},
+            (COLS - 1, 0): {"id": 2, "nivel_req": 10},
+            (0, ROWS - 1): {"id": 3, "nivel_req": 15},
+            (COLS - 1, ROWS - 1): {"id": 4, "nivel_req": 20}
+        }
+        self._colocar_elevadores_iniciais()
 
-    def alternar_camada(self):
-        self.camada_atual = "caverna" if self.camada_atual == "superficie" else "superficie"
+    def _colocar_elevadores_iniciais(self):
+        for (gx, gy), info in self.elevadores_cantos.items():
+            self.superficie[gy][gx] = "elevador"
+            cid = info["id"]
+            self.cavernas[cid][gy][gx] = "elevador"
+
+    def alternar_camada(self, caverna_id=1):
+        if self.camada_atual == "superficie":
+            self.camada_atual = f"caverna_{caverna_id}"
+        else:
+            self.camada_atual = "superficie"
 
     def get_grid_ativo(self):
-        return self.superficie if self.camada_atual == "superficie" else self.caverna
+        if self.camada_atual == "superficie":
+            return self.superficie
+        else:
+            cid = int(self.camada_atual.split("_")[1])
+            return self.cavernas[cid]
 
     def get_upgrades_ativo(self):
-        return self.upgrades_superficie if self.camada_atual == "superficie" else self.upgrades_caverna
+        if self.camada_atual == "superficie":
+            return self.upgrades_superficie
+        else:
+            cid = int(self.camada_atual.split("_")[1])
+            return self.upgrades_cavernas[cid]
 
     def get_base_tile(self):
         return "grama" if self.camada_atual == "superficie" else "pedra"
@@ -54,7 +88,7 @@ class GerenciadorMundo:
         grid = self.get_grid_ativo()
         upgrades = self.get_upgrades_ativo()
         base = self.get_base_tile()
-        eh_caverna = self.camada_atual == "caverna"
+        eh_caverna = self.camada_atual != "superficie"
 
         for y in range(ROWS):
             for x in range(COLS):
@@ -64,10 +98,7 @@ class GerenciadorMundo:
                     continue
 
                 # Fundo
-                if eh_caverna:
-                    self._desenhar_tile_caverna(screen, sx, sy, x, y)
-                else:
-                    screen.blit(IMAGENS[base], (sx, sy))
+                screen.blit(IMAGENS[base], (sx, sy))
 
                 # Construções
                 item_no_grid = grid[y][x]

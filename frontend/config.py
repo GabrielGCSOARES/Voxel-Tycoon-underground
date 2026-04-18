@@ -44,11 +44,91 @@ def carregar_imagens():
     IMAGENS = {}
     
     # Fallbacks iniciais
-    for k in ["grama","pedra","casa","fazenda","silo","cachoeira","palacio","elevador"]:
-        surf = pygame.Surface((GRID_SIZE, GRID_SIZE))
+    itens_completos = ["grama","pedra","casa","fazenda","silo","cachoeira","palacio","elevador",
+                       "mineracao", "cristal", "forja", "laboratorio", "reator", "cripto"]
+    for k in itens_completos:
+        surf = pygame.Surface((GRID_SIZE, GRID_SIZE), pygame.SRCALPHA)
         if k == "grama": surf.fill((34, 139, 34))
         elif k == "pedra": surf.fill((100, 100, 100))
         elif k == "elevador": surf.fill((255, 215, 0))
+        elif k == "mineracao":
+            surf.fill((0, 0, 0, 0))
+            # Pilha de pedras
+            pygame.draw.circle(surf, (80, 80, 80), (20, 35), 10)
+            pygame.draw.circle(surf, (60, 50, 50), (32, 35), 12)
+            pygame.draw.circle(surf, (100, 100, 100), (12, 25), 8)
+            pygame.draw.circle(surf, (90, 80, 70), (35, 20), 9)
+            pygame.draw.circle(surf, (70, 75, 80), (24, 15), 11)
+            # Entrada da mina na pilha
+            pygame.draw.rect(surf, (20, 15, 10), (18, 22, 12, 18), border_radius=3)
+            # Picareta esquecida encostada
+            pygame.draw.line(surf, (120, 80, 40), (10, 40), (15, 25), 2)
+            pygame.draw.polygon(surf, (180, 180, 180), [(13, 24), (19, 26), (16, 21)])
+
+        elif k == "cristal":
+            surf.fill((0, 0, 0, 0))
+            # Brilho de fundo
+            pygame.draw.circle(surf, (50, 100, 150, 100), (24, 24), 20)
+            # Cristais 
+            pygame.draw.polygon(surf, (100, 200, 255), [(24,4), (32,24), (24,44), (16,24)]) # Central maior
+            pygame.draw.polygon(surf, (150, 230, 255), [(24,8), (28,24), (24,40), (20,24)]) # Reflexo central
+            
+            pygame.draw.polygon(surf, (80, 150, 255), [(12,16), (20,28), (12,40), (4,28)]) # Esquerdo
+            pygame.draw.polygon(surf, (60, 120, 220), [(36,18), (44,30), (36,42), (28,30)]) # Direito
+
+        elif k == "forja":
+            surf.fill((0, 0, 0, 0))
+            # Forno principal
+            pygame.draw.rect(surf, (60, 55, 55), (8, 15, 32, 25), border_radius=4)
+            # Boca do forno com fogo
+            pygame.draw.rect(surf, (20, 10, 10), (14, 25, 20, 12), border_radius=2)
+            pygame.draw.circle(surf, (255, 80, 0), (20, 32), 5)
+            pygame.draw.circle(surf, (255, 200, 0), (26, 32), 4)
+            # Chaminé
+            pygame.draw.rect(surf, (50, 45, 45), (18, 5, 12, 10))
+            # Bigorna do lado de fora
+            pygame.draw.rect(surf, (40, 40, 45), (32, 35, 12, 8), border_radius=1)
+            pygame.draw.rect(surf, (40, 40, 45), (34, 32, 8, 3))
+            pygame.draw.polygon(surf, (40, 40, 45), [(32,32), (30,35), (34,35)])
+
+        elif k == "laboratorio":
+            surf.fill((0, 0, 0, 0))
+            # Mesa
+            pygame.draw.rect(surf, (120, 100, 80), (6, 30, 36, 12), border_radius=2)
+            # Microscópio
+            pygame.draw.rect(surf, (200, 200, 200), (10, 20, 6, 10))
+            pygame.draw.polygon(surf, (180, 180, 180), [(13,20), (18,12), (10,12)])
+            # Frasco principal
+            pygame.draw.rect(surf, (100, 180, 255), (24, 18, 14, 12), border_radius=6)
+            pygame.draw.rect(surf, (200, 200, 200), (29, 10, 4, 8))
+            pygame.draw.circle(surf, (100, 255, 255), (28, 8), 2)
+            pygame.draw.circle(surf, (150, 255, 255), (32, 4), 3)
+
+        elif k == "reator":
+            surf.fill((0, 0, 0, 0))
+            # Tanque
+            pygame.draw.rect(surf, (80, 90, 80), (10, 8, 28, 32), border_radius=8)
+            pygame.draw.rect(surf, (50, 60, 50), (6, 12, 36, 4))
+            pygame.draw.rect(surf, (50, 60, 50), (6, 32, 36, 4))
+            # Núcleo neon
+            pygame.draw.circle(surf, (0, 255, 100), (24, 24), 10)
+            pygame.draw.circle(surf, (200, 255, 200), (24, 24), 4)
+            # Fio conectado
+            pygame.draw.line(surf, (0, 0, 0), (24, 8), (24, 0), 2)
+
+        elif k == "cripto":
+            surf.fill((0, 0, 0, 0))
+            # Servidores (racks)
+            for rack_x in [6, 18, 30]:
+                pygame.draw.rect(surf, (40, 40, 50), (rack_x, 8, 10, 32), border_radius=2)
+                # Leds piscando
+                for led_y in [12, 18, 24, 30, 36]:
+                    cor = (0, 255, 0) if (rack_x + led_y) % 3 == 0 else (0, 150, 255)
+                    if (rack_x + led_y) % 5 == 0: cor = (255, 0, 0)
+                    pygame.draw.line(surf, cor, (rack_x + 2, led_y), (rack_x + 8, led_y), 2)
+            # Cabo ligando racks
+            pygame.draw.line(surf, (30, 30, 30), (16, 40), (30, 40), 3)
+
         else: surf.fill((255, 0, 255)) 
         IMAGENS[k] = surf
 
@@ -83,7 +163,7 @@ def carregar_imagens():
 IMAGENS = carregar_imagens()
 
 # ---------------- DADOS ----------------
-ITENS   = ["casa", "fazenda", "elevador", "silo", "cachoeira", "palacio"]
+ITENS   = ["casa", "fazenda", "silo", "cachoeira", "palacio"]
 CUSTOS  = {"casa":100, "fazenda":150, "elevador":250, "silo":200, "cachoeira":300, "palacio":1000}
 XP_ITENS= {"casa":20, "fazenda":40, "elevador":50, "silo":80, "cachoeira":120, "palacio":500}
 RENDA_BASE = {"casa": 0.02, "fazenda": 0.05, "elevador": 0.0, "silo": 0.1, "cachoeira": 0.2, "palacio": 1.0}

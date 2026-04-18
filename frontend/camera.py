@@ -6,10 +6,17 @@ class Camera:
         self.offset_y = 0
 
     def mover(self, dx, dy):
+        self.offset_x += dx
+        self.offset_y += dy
+        self.limitar()
+
+    def limitar(self):
         mapa_pixel_w = COLS * GRID_SIZE
         mapa_pixel_h = ROWS * GRID_SIZE
-        self.offset_x = max(-(mapa_pixel_w - MAP_WIDTH), min(0, self.offset_x + dx))
-        self.offset_y = max(-(mapa_pixel_h - HEIGHT), min(0, self.offset_y + dy))
+        padding_x = MAP_WIDTH // 2
+        padding_y = HEIGHT // 2
+        self.offset_x = max(MAP_WIDTH - mapa_pixel_w - padding_x, min(padding_x, self.offset_x))
+        self.offset_y = max(HEIGHT - mapa_pixel_h - padding_y, min(padding_y, self.offset_y))
 
     def aplicar(self, x, y):
         return (x + self.offset_x, y + self.offset_y)
