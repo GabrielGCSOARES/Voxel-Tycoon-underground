@@ -1,147 +1,227 @@
-import pygame, sys
-import os
-# O 'from config import *' já traz a 'screen', as 'IMAGENS' e o 'CLICK_SOUND'
+import pygame, sys, os
 from config import *
 from mundo import GerenciadorMundo
+from camera import Camera
+from npcs import GerenciadorNPCs
 
-pygame.display.set_caption("Voxel Tycoon Underground")
+# ---------------- CONFIGURAÇÕES INICIAIS ----------------
 clock = pygame.time.Clock()
 
-# Fontes
-font = pygame.font.SysFont("arial", 22)
-font_menu = pygame.font.SysFont("arial", 40)
+try:
+    font = pygame.font.SysFont("arial", 22)
+    font_menu = pygame.font.SysFont("arial", 45, bold=True)
+except:
+    font = pygame.font.Font(None, 24)
+    font_menu = pygame.font.Font(None, 45)
 
-# Iniciar música se não estiver tocando
-if not pygame.mixer.music.get_busy():
-    try:
-        pygame.mixer.music.play(-1)
-    except:
-        pass
-
-# Objetos e Estado do Jogo
+# ---------------- ESTADO DO JOGO ----------------
 mundo = GerenciadorMundo()
+camera = Camera()
+gerenciador_npcs = GerenciadorNPCs(quantidade=15)
 estado = "menu"
-dinheiro, populacao, nivel, xp, xp_max = 500, 0, 1, 0, 100 
+dinheiro, populacao, nivel, xp, xp_max = 500, 0, 1, 0, 100
+renda_passiva = 0.0
+
 selected_index = 0
-contagem_global = {item: 0 for item in ITENS}
+arrastando = False
+drag_start = (0, 0)
+drag_offset_start = (0, 0)
 
-def construir(gx, gy):
-    global dinheiro, xp, populacao
-    grid = mundo.get_grid_ativo()
-    base = mundo.get_base_tile()
-    item = ITENS[selected_index]
+construcao_selecionada = None
 
-    if dinheiro >= CUSTOS[item]:
-        # LÓGICA ESPECIAL DO ELEVADOR: Ele precisa aparecer nos dois mundos
-        if item == "elevador":
-            # Só constrói se o espaço estiver livre em cima E embaixo
-            if mundo.superficie[gy][gx] == "grama" and mundo.caverna[gy][gx] == "pedra":
-                mundo.superficie[gy][gx] = "elevador"
-                mundo.caverna[gy][gx] = "elevador"
-            else:
-                return # Espaço ocupado
-        else:
-            # Construção comum
-            if grid[gy][gx] == base:
-                grid[gy][gx] = item
-            else:
-                return # Já tem algo construído aqui
+# ---------------- AUXILIARES DE UI ----------------
+def desenhar_botao_menu(texto, y_pos, mouse_pos):
+    largura_btn, altura_btn = 300, 60
+    x_pos = WIDTH // 2 - largura_btn // 2
 
-        # Se chegou aqui, a construção foi um sucesso!
-        dinheiro -= CUSTOS[item]
-        contagem_global[item] += 1
-        xp += XP_ITENS[item]
-        if item == "casa": populacao += 5
-        if CLICK_SOUND: CLICK_SOUND.play()
+    sobre_botao = x_pos < mouse_pos[0] < x_pos + largura_btn and y_pos < mouse_pos[1] < y_pos + altura_btn
+    cor_fundo = (60, 170, 60) if sobre_botao else (40, 40, 50)
+
+    pygame.draw.rect(screen, cor_fundo, (x_pos, y_pos, largura_btn, altura_btn), border_radius=10)
+    pygame.draw.rect(screen, BRANCO, (x_pos, y_pos, largura_btn, altura_btn), 2, border_radius=10)
+
+    txt_surf = font.render(texto, True, BRANCO)
+    screen.blit(txt_surf, (WIDTH // 2 - txt_surf.get_width() // 2, y_pos + altura_btn // 2 - txt_surf.get_height() // 2))
+
+    return sobre_botao
 
 def desenhar_painel():
-    # Fundo do Painel
     pygame.draw.rect(screen, (30, 34, 40), (MAP_WIDTH, 0, PANEL_WIDTH, HEIGHT))
-    
-    # Texto da Camada Atual
     cor_camada = VERDE if mundo.camada_atual == "superficie" else DOURADO
-    camada_txt = font.render(f"MAPA: {mundo.camada_atual.upper()}", True, cor_camada)
-    screen.blit(camada_txt, (MAP_WIDTH + 20, 20))
-    
-    # Status Financeiro e Social
-    status = [
-        f"Dinheiro: ${int(dinheiro)}", 
-        f"População: {populacao}", 
-        f"Nível: {nivel}",
+    screen.blit(font.render(f"MAPA: {mundo.camada_atual.upper()}", True, cor_camada), (MAP_WIDTH + 20, 65))
+
+    ganho_segundo = renda_passiva * 60
+    recursos = [
+        f"Dinheiro: ${int(dinheiro)}",
+        f"Ganho: ${ganho_segundo:.1f}/s",
+        f"População: {populacao}",
         f"XP: {xp}/{xp_max}"
     ]
-    for i, txt in enumerate(status):
-        render = font.render(txt, True, BRANCO)
-        screen.blit(render, (MAP_WIDTH + 20, 70 + i*30))
-    
-    # Menu de Construção
-    titulo_itens = font.render("CONSTRUIR (Teclas 1-6):", True, (150, 150, 150))
-    screen.blit(titulo_itens, (MAP_WIDTH + 20, 220))
-    
-    for i, item in enumerate(ITENS):
-        cor = DOURADO if i == selected_index else BRANCO
-        txt = font.render(f"{i+1}-{item.upper()} (${CUSTOS[item]})", True, cor)
-        screen.blit(txt, (MAP_WIDTH + 20, 250 + i*35))
+    for i, txt in enumerate(recursos):
+        screen.blit(font.render(txt, True, BRANCO), (MAP_WIDTH + 20, 105 + i * 30))
+
+    lista_ativa = ITENS_CAVERNA if mundo.camada_atual == "caverna" else ITENS
+    screen.blit(font.render("CONSTRUIR (1-6):", True, (150, 150, 150)), (MAP_WIDTH + 20, 270))
+    for i, item in enumerate(lista_ativa):
+        custo = CUSTOS[item]
+        if i == selected_index:
+            cor = DOURADO
+        elif dinheiro < custo:
+            cor = (180, 60, 60)
+        else:
+            cor = BRANCO
+        screen.blit(font.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor), (MAP_WIDTH + 20, 305 + i * 35))
+
+def desenhar_modal_upgrade():
+    if not construcao_selecionada:
+        return None
+
+    gx, gy, item, nivel_atual = construcao_selecionada
+    largura, altura = 350, 250
+    cx, cy = WIDTH // 2 - largura // 2, HEIGHT // 2 - altura // 2
+
+    pygame.draw.rect(screen, (20, 25, 30), (cx, cy, largura, altura), border_radius=15)
+    pygame.draw.rect(screen, DOURADO, (cx, cy, largura, altura), 3, border_radius=15)
+
+    screen.blit(font_menu.render(item.upper(), True, BRANCO), (cx + 20, cy + 20))
+    screen.blit(font.render(f"Nível Atual: {nivel_atual}", True, (200, 200, 200)), (cx + 20, cy + 70))
+
+    multiplicador_atual = 1.5 ** (nivel_atual - 1)
+    multiplicador_prox  = 1.5 ** nivel_atual
+    renda_atual   = RENDA_BASE.get(item, 0) * multiplicador_atual * 60
+    renda_prox    = RENDA_BASE.get(item, 0) * multiplicador_prox  * 60
+    custo_upgrade = CUSTOS[item] * (2 ** nivel_atual)
+
+    screen.blit(font.render(f"Renda: ${renda_atual:.1f}/s -> ${renda_prox:.1f}/s", True, VERDE), (cx + 20, cy + 100))
+    screen.blit(font.render(f"Custo Upgrade: ${custo_upgrade:,}", True, DOURADO), (cx + 20, cy + 130))
+
+    btn_upgrade = pygame.Rect(cx + 20,  cy + 180, 140, 40)
+    btn_fechar  = pygame.Rect(cx + 190, cy + 180, 140, 40)
+
+    cor_up = VERDE if dinheiro >= custo_upgrade else CINZA
+    pygame.draw.rect(screen, cor_up,          btn_upgrade, border_radius=5)
+    pygame.draw.rect(screen, (200, 50, 50),   btn_fechar,  border_radius=5)
+
+    screen.blit(font.render("Evoluir", True, BRANCO), (btn_upgrade.x + 35, btn_upgrade.y + 10))
+    screen.blit(font.render("Fechar",  True, BRANCO), (btn_fechar.x  + 40, btn_fechar.y  + 10))
+
+    return {
+        "upgrade": btn_upgrade, "fechar": btn_fechar,
+        "custo": custo_upgrade, "gx": gx, "gy": gy,
+        "item": item, "nivel": nivel_atual
+    }
 
 # ---------------- LOOP PRINCIPAL ----------------
 while True:
-    mouse = pygame.mouse.get_pos()
-    
+    mouse_pos = pygame.mouse.get_pos()
+    screen.fill((15, 15, 20))
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit(); sys.exit()
-            
+
         if event.type == pygame.KEYDOWN:
             if pygame.K_1 <= event.key <= pygame.K_6:
                 selected_index = event.key - pygame.K_1
-            # ESC para voltar ao menu
             if event.key == pygame.K_ESCAPE:
-                estado = "menu"
-
-        if event.type == pygame.MOUSEBUTTONDOWN and estado == "jogo":
-            # Clique no Mapa (Lado esquerdo)
-            if mouse[0] < MAP_WIDTH and event.button == 1:
-                gx, gy = mouse[0] // GRID_SIZE, mouse[1] // GRID_SIZE
-                grid_atual = mundo.get_grid_ativo()
-
-                # INTERAÇÃO: Se clicar em um elevador JÁ EXISTENTE, ele troca de mapa
-                if grid_atual[gy][gx] == "elevador":
-                    mundo.alternar_camada()
-                    if CLICK_SOUND: CLICK_SOUND.play()
+                if construcao_selecionada:
+                    construcao_selecionada = None
                 else:
-                    # Se não for um elevador, tenta construir o item selecionado
-                    construir(gx, gy)
-        
-        if event.type == pygame.MOUSEBUTTONDOWN and estado == "menu":
-            # Botão Iniciar no Menu
-            if WIDTH//2 - 150 < mouse[0] < WIDTH//2 + 150 and 350 < mouse[1] < 420:
-                estado = "jogo"
+                    estado = "menu"
 
-    # --- LÓGICA DE ATUALIZAÇÃO ---
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if estado == "menu":
+                if WIDTH // 2 - 150 < mouse_pos[0] < WIDTH // 2 + 150:
+                    if 300 < mouse_pos[1] < 360:
+                        estado = "jogo"
+                        if CLICK_SOUND: CLICK_SOUND.play()
+                    elif 380 < mouse_pos[1] < 440:
+                        pygame.quit(); sys.exit()
+
+            elif estado == "jogo":
+                if construcao_selecionada:
+                    botoes = desenhar_modal_upgrade()
+                    if botoes:
+                        if botoes["fechar"].collidepoint(mouse_pos):
+                            construcao_selecionada = None
+                            if CLICK_SOUND: CLICK_SOUND.play()
+                        elif botoes["upgrade"].collidepoint(mouse_pos) and dinheiro >= botoes["custo"]:
+                            dinheiro -= botoes["custo"]
+                            grid_up = mundo.get_upgrades_ativo()
+                            grid_up[botoes["gy"]][botoes["gx"]] += 1
+
+                            renda_velha = RENDA_BASE[botoes["item"]] * (1.5 ** (botoes["nivel"] - 1))
+                            renda_nova  = RENDA_BASE[botoes["item"]] * (1.5 ** botoes["nivel"])
+                            renda_passiva += (renda_nova - renda_velha)
+
+                            construcao_selecionada = None
+                            if CLICK_SOUND: CLICK_SOUND.play()
+                    continue
+
+                if mouse_pos[0] < MAP_WIDTH:
+                    gx, gy  = camera.tela_para_mundo(mouse_pos[0], mouse_pos[1])
+                    grid    = mundo.get_grid_ativo()
+                    grid_up = mundo.get_upgrades_ativo()
+
+                    if 0 <= gx < COLS and 0 <= gy < ROWS:
+                        item_clicado = grid[gy][gx]
+
+                        if item_clicado == "elevador":
+                            mundo.alternar_camada()
+                        elif item_clicado != mundo.get_base_tile():
+                            construcao_selecionada = (gx, gy, item_clicado, grid_up[gy][gx])
+                            if CLICK_SOUND: CLICK_SOUND.play()
+                        else:
+                            lista_ativa = ITENS_CAVERNA if mundo.camada_atual == "caverna" else ITENS
+                            item = lista_ativa[selected_index]
+                            if dinheiro >= CUSTOS[item]:
+                                if item == "elevador":
+                                    mundo.superficie[gy][gx] = "elevador"
+                                    mundo.caverna[gy][gx]    = "elevador"
+                                else:
+                                    grid[gy][gx]    = item
+                                    grid_up[gy][gx] = 1
+                                    renda_passiva  += RENDA_BASE[item]
+                                # Após grid[gy][gx] = item na caverna
+                                if mundo.camada_atual == "caverna":
+                                    gerenciador_npcs.adicionar_npc_caverna()
+                                dinheiro -= CUSTOS[item]
+                                xp       += XP_ITENS[item]
+                                if CLICK_SOUND: CLICK_SOUND.play()
+
+        # Câmera (Botão Direito)
+        if estado == "jogo" and not construcao_selecionada:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+                arrastando = True
+                drag_start = mouse_pos
+                drag_offset_start = (camera.offset_x, camera.offset_y)
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 3:
+                arrastando = False
+
+    if arrastando and not construcao_selecionada:
+        camera.offset_x = drag_offset_start[0] + (mouse_pos[0] - drag_start[0])
+        camera.offset_y = drag_offset_start[1] + (mouse_pos[1] - drag_start[1])
+
+    # ---------------- RENDERIZAÇÃO ----------------
     if estado == "menu":
-        screen.fill((20, 20, 30))
-        txt = font_menu.render("VOXEL TYCOON: UNDERGROUND", True, DOURADO)
-        screen.blit(txt, (WIDTH//2 - txt.get_width()//2, 200))
-        
-        pygame.draw.rect(screen, CINZA, (WIDTH//2-150, 350, 300, 70), border_radius=8)
-        btn_txt = font_menu.render("INICIAR", True, BRANCO)
-        screen.blit(btn_txt, (WIDTH//2 - btn_txt.get_width()//2, 365))
-        
-    elif estado == "jogo":
-        # Renda Passiva baseada nas construções
-        renda = (contagem_global["casa"]*2 + contagem_global["fazenda"]*10 + contagem_global["silo"]*25) / 60
-        dinheiro += renda
-        
-        # Subir de Nível (Exemplo básico)
-        if xp >= xp_max:
-            nivel += 1
-            xp = 0
-            xp_max = int(xp_max * 1.5)
-            dinheiro += 500 # Bônus de nível
+        titulo = font_menu.render("VOXEL TYCOON", True, DOURADO)
+        screen.blit(titulo, (WIDTH // 2 - titulo.get_width() // 2, 150))
 
-        # --- DESENHO ---
-        mundo.desenhar(screen)
+        desenhar_botao_menu("INICIAR JOGO", 300, mouse_pos)
+        desenhar_botao_menu("SAIR PARA DESKTOP", 380, mouse_pos)
+
+    elif estado == "jogo":
+        dinheiro += renda_passiva
+        mundo.desenhar(screen, camera)
+        gerenciador_npcs.atualizar(mundo.camada_atual)
+        gerenciador_npcs.desenhar(screen, camera, mundo.camada_atual)
         desenhar_painel()
+
+        if construcao_selecionada:
+            s = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            s.fill((0, 0, 0, 128))
+            screen.blit(s, (0, 0))
+            desenhar_modal_upgrade()
 
     pygame.display.flip()
     clock.tick(60)

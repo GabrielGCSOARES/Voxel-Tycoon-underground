@@ -1,0 +1,30 @@
+services:
+  voxel-tycoon:
+    container_name: voxel-tycoon
+    build:
+      context: .
+      dockerfile: Dockerfile
+    privileged: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XDG_RUNTIME_DIR=/run/user/1000
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+    volumes:
+      # Compartilhamento da interface gráfica (X11)
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      # Compartilhamento do Áudio (PulseAudio)
+      - /run/user/1000/pulse:/run/user/1000/pulse
+      - ~/.config/pulse/cookie:/root/.config/pulse/cookie
+      # Persistência do código e assets (ajustado para o caminho padrão)
+      - .:/usr/src/app
+    devices:
+      - /dev/dri:/dev/dri      # Aceleração de hardware (Vídeo)
+      - /dev/snd:/dev/snd      # Placa de som direta
+    group_add:
+      - audio
+      - video
+    network_mode: host
+    stdin_open: true
+    tty: true
+    # Garante que o Python não segure o buffer de log e rode o arquivo principal
+    command: python3 -u frontend/main.py
