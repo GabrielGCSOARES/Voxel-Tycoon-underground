@@ -10,9 +10,11 @@ clock = pygame.time.Clock()
 try:
     font = pygame.font.SysFont("arial", 22)
     font_menu = pygame.font.SysFont("arial", 45, bold=True)
-except:
+    font_small = pygame.font.SysFont("arial", 13, bold=True)
+except Exception:
     font = pygame.font.Font(None, 24)
     font_menu = pygame.font.Font(None, 45)
+    font_small = pygame.font.Font(None, 14)
 
 # ---------------- ESTADO DO JOGO ----------------
 mundo = GerenciadorMundo()
@@ -47,6 +49,7 @@ def desenhar_botao_menu(texto, y_pos, mouse_pos):
 
     return sobre_botao
 
+
 def desenhar_painel():
     pygame.draw.rect(screen, (30, 34, 40), (MAP_WIDTH, 0, PANEL_WIDTH, HEIGHT))
     cor_camada = VERDE if mundo.camada_atual == "superficie" else DOURADO
@@ -64,7 +67,13 @@ def desenhar_painel():
         screen.blit(font.render(txt, True, BRANCO), (MAP_WIDTH + 20, 105 + i * 30))
 
     lista_ativa = ITENS_CAVERNA if mundo.camada_atual != "superficie" else ITENS
-    screen.blit(font.render("CONSTRUIR (1-6):", True, (150, 150, 150)), (MAP_WIDTH + 20, 270))
+
+    # Cabeçalho "CONSTRUIR" + itens com altura calculada
+    Y_CONSTRUIR = 270
+    ITEM_H      = 28   # fonte 22px + margem
+    n_itens     = len(lista_ativa)
+
+    screen.blit(font.render("CONSTRUIR (1-6):", True, (150, 150, 150)), (MAP_WIDTH + 20, Y_CONSTRUIR))
     for i, item in enumerate(lista_ativa):
         custo = CUSTOS[item]
         if i == selected_index:
@@ -73,7 +82,13 @@ def desenhar_painel():
             cor = (180, 60, 60)
         else:
             cor = BRANCO
-        screen.blit(font.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor), (MAP_WIDTH + 20, 305 + i * 35))
+        screen.blit(font.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor),
+                    (MAP_WIDTH + 20, Y_CONSTRUIR + 26 + i * ITEM_H))
+
+    # ── HUD do mercado — começa ABAIXO do último item de construção ──
+    y_mercado = Y_CONSTRUIR + 26 + n_itens * ITEM_H + 14
+    gerenciador_npcs.desenhar_hud_mercado(screen, font_small, MAP_WIDTH, y_mercado)
+
 
 def desenhar_modal_upgrade():
     if not construcao_selecionada:
@@ -249,7 +264,7 @@ while True:
 
     elif estado == "jogo":
         dinheiro += renda_passiva
-        
+
         if xp >= xp_max:
             xp -= xp_max
             nivel += 1
