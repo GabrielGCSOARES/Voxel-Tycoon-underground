@@ -1,0 +1,131 @@
+"""ui.py — Fontes, botões, painel lateral, modal de upgrade e fundo animado."""
+from __future__ import annotations
+
+import math
+
+import pygame
+
+from config import (
+    BRANCO, CINZA, CUSTOS, DOURADO, HEIGHT,
+    ITENS, ITENS_CAVERNA, MAP_WIDTH, PANEL_WIDTH,
+    RENDA_BASE, VERDE, WIDTH, screen,
+)
+
+# ── Constantes de layout ─────────────────────────────────
+BTN_W, BTN_H   = 300, 60
+Y_CONSTRUIR    = 270
+ITEM_H         = 28
+PANEL_X        = MAP_WIDTH + 20
+OVERLAY_ALPHA  = 128
+ONDA_ESPC_X    = 60
+ONDA_ESPC_Y    = 40
+
+
+# ── Fontes ───────────────────────────────────────────────
+def carregar_fontes() -> tuple[pygame.font.Font, pygame.font.Font, pygame.font.Font]:
+    try:
+        return (
+            pygame.font.SysFont("arial", 22),
+            pygame.font.SysFont("arial", 45, bold=True),
+            pygame.font.SysFont("arial", 13, bold=True),
+        )
+    except Exception:
+        return pygame.font.Font(None, 24), pygame.font.Font(None, 45), pygame.font.Font(None, 14)
+
+
+# ── Fundo ────────────────────────────────────────────────
+def desenhar_fundo_superficie(tempo: float, camera) -> None:
+    screen.fill((20, 100, 150))
+    sy0 = int(camera.offset_y) % ONDA_ESPC_Y
+    sx0 = int(camera.offset_x) % ONDA_ESPC_X
+    for y in range(sy0 - ONDA_ESPC_Y, HEIGHT + ONDA_ESPC_Y, ONDA_ESPC_Y):
+        wy = y - camera.offset_y
+        for x in range(sx0 - ONDA_ESPC_X, MAP_WIDTH + ONDA_ESPC_X, ONDA_ESPC_X):
+            wx = x - camera.offset_x
+            ox = math.sin(tempo * 1.5 + wy * 0.05) * 15
+            oy = math.cos(tempo * 2.0 + wx * 0.05) * 8
+            px, py = x + ox, y + oy
+            pygame.draw.line(screen, (40, 140, 190), (px, py),        (px+20, py),      3)
+            pygame.draw.line(screen, (60, 160, 210), (px+5, py+3),    (px+15, py+3),    2)
+
+
+# ── Menu ─────────────────────────────────────────────────
+def desenhar_botao_menu(font, texto: str, y_pos: int, mouse_pos: tuple) -> bool:
+    x     = WIDTH // 2 - BTN_W // 2
+    hover = x < mouse_pos[0] < x + BTN_W and y_pos < mouse_pos[1] < y_pos + BTN_H
+    cor   = (60, 170, 60) if hover else (40, 40, 50)
+    pygame.draw.rect(screen, cor,    (x, y_pos, BTN_W, BTN_H), border_radius=10)
+    pygame.draw.rect(screen, BRANCO, (x, y_pos, BTN_W, BTN_H), 2, border_radius=10)
+    txt = font.render(texto, True, BRANCO)
+    screen.blit(txt, (WIDTH//2 - txt.get_width()//2,
+                      y_pos + BTN_H//2 - txt.get_height()//2))
+    return hover
+
+
+def render_menu(font, font_menu, mouse_pos: tuple) -> None:
+    titulo = font_menu.render("VOXEL TYCOON", True, DOURADO)
+    screen.blit(titulo, (WIDTH//2 - titulo.get_width()//2, 150))
+    desenhar_botao_menu(font, "INICIAR JOGO",      300, mouse_pos)
+    desenhar_botao_menu(font, "SAIR PARA DESKTOP", 380, mouse_pos)
+
+
+# ── Painel lateral ───────────────────────────────────────
+def desenhar_painel(font, font_small, estado, mundo, npcs) -> None:
+    pygame.draw.rect(screen, (30, 34, 40), (MAP_WIDTH, 0, PANEL_WIDTH, HEIGHT))
+    cor_camada = VERDE if mundo.camada_atual == "superficie" else DOURADO
+    screen.blit(font.render(f"MAPA: {mundo.camada_atual.upper()}", True, cor_camada),
+                (PANEL_X, 65))
+    ganho = estado.renda_passiva * 60
+    for i, txt in enumerate((
+        f"Dinheiro: ${int(estado.dinheiro):,}",
+        f"Ganho: ${ganho:.1f}/s",
+        f"Nivel: {estado.nivel}",
+        f"XP: {estado.xp}/{estado.xp_max}",
+        f"Populacao: {estado.populacao}",
+    )):
+        screen.blit(font.render(txt, True, BRANCO), (PANEL_X, 105 + i * 30))
+
+    lista = ITENS_CAVERNA if mundo.camada_atual != "superficie" else ITENS
+    screen.blit(font.render("CONSTRUIR (1-6):", True, (150, 150, 150)), (PANEL_X, Y_CONSTRUIR))
+    for i, item in enumerate(lista):
+        custo = CUSTOS[item]
+        cor   = (DOURADO if i == estado.selected_index
+                 else (180, 60, 60) if estado.dinheiro < custo else BRANCO)
+        screen.blit(font.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor),
+                    (PANEL_X, Y_CONSTRUIR + 26 + i * ITEM_H))
+
+    y_mercado = Y_CONSTRUIR + 26 + len(lista) * ITEM_H + 14
+    npcs.desenhar_hud_mercado(screen, font_small, MAP_WIDTH, y_mercado)
+
+
+# ── Modal de upgrade ─────────────────────────────────────
+def desenhar_modal_upgrade(font, font_menu, estado) -> dict | None:
+    if not estado.construcao_selecionada:
+        return None
+    gx, gy, item, nivel_atual = estado.construcao_selecionada
+    W, H = 350, 250
+    cx   = WIDTH  // 2 - W // 2
+    cy   = HEIGHT // 2 - H // 2
+
+    pygame.draw.rect(screen, (20, 25, 30), (cx, cy, W, H), border_radius=15)
+    pygame.draw.rect(screen, DOURADO,      (cx, cy, W, H), 3, border_radius=15)
+
+    base      = RENDA_BASE.get(item, 0)
+    renda_at  = base * (1.5 ** (nivel_atual - 1)) * 60
+    renda_nx  = base * (1.5 **  nivel_atual)      * 60
+    custo_up  = CUSTOS[item] * (2 ** nivel_atual)
+
+    screen.blit(font_menu.render(item.upper(), True, BRANCO),                         (cx+20, cy+20))
+    screen.blit(font.render(f"Nivel Atual: {nivel_atual}", True, (200,200,200)),       (cx+20, cy+70))
+    screen.blit(font.render(f"Renda: ${renda_at:.1f}/s -> ${renda_nx:.1f}/s", True, VERDE), (cx+20, cy+100))
+    screen.blit(font.render(f"Custo Upgrade: ${custo_up:,}", True, DOURADO),           (cx+20, cy+130))
+
+    btn_up  = pygame.Rect(cx+20,  cy+180, 140, 40)
+    btn_fx  = pygame.Rect(cx+190, cy+180, 140, 40)
+    pygame.draw.rect(screen, VERDE if estado.dinheiro >= custo_up else CINZA, btn_up,  border_radius=5)
+    pygame.draw.rect(screen, (200, 50, 50),  btn_fx,  border_radius=5)
+    screen.blit(font.render("Evoluir", True, BRANCO), (btn_up.x+35, btn_up.y+10))
+    screen.blit(font.render("Fechar",  True, BRANCO), (btn_fx.x+40, btn_fx.y+10))
+
+    return {"upgrade": btn_up, "fechar": btn_fx, "custo": custo_up,
+            "gx": gx, "gy": gy, "item": item, "nivel": nivel_atual}

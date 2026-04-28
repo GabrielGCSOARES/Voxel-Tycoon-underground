@@ -9,7 +9,6 @@ class GerenciadorMundo:
         self.reset()
 
     def _gerar_ruido_caverna(self):
-        """Gera variação sutil de cor para cada tile da caverna (só roda uma vez)"""
         random.seed(42)
         self.ruido = [
             [random.randint(-12, 12) for _ in range(COLS)]
@@ -70,7 +69,6 @@ class GerenciadorMundo:
         return "grama" if self.camada_atual == "superficie" else "pedra"
 
     def _desenhar_tile_caverna(self, screen, sx, sy, x, y):
-        """Desenha tile de pedra sólido com variação sutil de cor"""
         v = self.ruido[y][x]
         base_r, base_g, base_b = 55, 55, 60
         cor = (
@@ -80,7 +78,6 @@ class GerenciadorMundo:
         )
         pygame.draw.rect(screen, cor, (sx, sy, GRID_SIZE, GRID_SIZE))
 
-        # Linha sutil de borda para dar sensação de profundidade
         borda = (max(0, cor[0] - 18), max(0, cor[1] - 18), max(0, cor[2] - 18))
         pygame.draw.rect(screen, borda, (sx, sy, GRID_SIZE, GRID_SIZE), 1)
 
@@ -97,10 +94,8 @@ class GerenciadorMundo:
                 if sx + GRID_SIZE < 0 or sx > MAP_WIDTH or sy + GRID_SIZE < 0 or sy > HEIGHT:
                     continue
 
-                # Fundo
                 screen.blit(IMAGENS[base], (sx, sy))
 
-                # Construções
                 item_no_grid = grid[y][x]
                 if item_no_grid != base and item_no_grid in IMAGENS:
                     screen.blit(IMAGENS[item_no_grid], (sx, sy))
