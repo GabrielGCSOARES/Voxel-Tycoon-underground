@@ -36,7 +36,7 @@ try:
     if os.path.exists(click_path):
         CLICK_SOUND = pygame.mixer.Sound(click_path)
 except Exception as e:
-    print(f"⚠️ Aviso sobre áudio: {e}")
+    print(f"Aviso sobre áudio: {e}")
 
 # ---------------- IMAGENS ----------------
 def carregar_imagens():
@@ -143,7 +143,7 @@ def carregar_imagens():
         "elevador": "entrace cave.png"
     }
 
-    print(f"\n--- 🔎 BUSCANDO ASSETS EM: {ASSETS_DIR} ---\n")
+    print(f"\n--- BUSCANDO ASSETS EM: {ASSETS_DIR} ---\n")
 
     for chave, nome_arquivo in arquivos.items():
         caminho_completo = os.path.join(ASSETS_DIR, nome_arquivo)
@@ -152,11 +152,11 @@ def carregar_imagens():
             if os.path.exists(caminho_completo):
                 img = pygame.image.load(caminho_completo).convert_alpha()
                 IMAGENS[chave] = escalar(img)
-                print(f"✅ {nome_arquivo} carregado.")
+                print(f"{nome_arquivo} carregado.")
             else:
-                print(f"❌ NÃO ENCONTRADO: {caminho_completo}")
+                print(f"NÃO ENCONTRADO: {caminho_completo}")
         except Exception as e:
-            print(f"❌ ERRO AO ABRIR {nome_arquivo}: {e}")
+            print(f"ERRO AO ABRIR {nome_arquivo}: {e}")
 
     return IMAGENS
 
