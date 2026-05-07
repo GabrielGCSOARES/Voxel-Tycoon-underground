@@ -162,6 +162,23 @@ def carregar_imagens():
 
 IMAGENS = carregar_imagens()
 
+
+def tint_surface(surface: pygame.Surface, tint_color: tuple[int, int, int]) -> pygame.Surface:
+    result = surface.copy()
+    overlay = pygame.Surface(result.get_size(), pygame.SRCALPHA)
+    overlay.fill((*tint_color, 90))
+    result.blit(overlay, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    return result
+
+IMAGENS_RIVAL = {
+    key: tint_surface(IMAGENS[key], (170, 90, 230))
+    for key in (
+        "casa", "fazenda", "silo", "cachoeira", "palacio",
+        "mineracao", "cristal", "forja", "laboratorio", "reator", "cripto",
+        "elevador",
+    )
+}
+
 # ---------------- DADOS ----------------
 ITENS   = ["casa", "fazenda", "silo", "cachoeira", "palacio"]
 CUSTOS  = {"casa":100, "fazenda":150, "elevador":250, "silo":200, "cachoeira":300, "palacio":1000}

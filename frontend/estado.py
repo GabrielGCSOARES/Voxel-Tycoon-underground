@@ -1,6 +1,8 @@
 """estado.py — Contêiner mutável com todo o estado em tempo de execução."""
 from __future__ import annotations
 
+from vila import Vila
+
 _MSG_DURACAO = 120  # frames
 
 
@@ -10,6 +12,7 @@ class EstadoJogo:
         "renda_passiva", "selected_index", "arrastando",
         "drag_start", "drag_offset_start",
         "construcao_selecionada", "mensagem_tela", "tempo_mensagem",
+        "vila_jogador", "vila_rival", "modo_ataque", "alvo_ataque_selecionado",
     )
 
     def __init__(self) -> None:
@@ -27,6 +30,10 @@ class EstadoJogo:
         self.construcao_selecionada: tuple | None = None
         self.mensagem_tela        = ""
         self.tempo_mensagem       = 0
+        self.vila_jogador         = Vila("Você", 500.0)
+        self.vila_rival           = Vila("Rival", 400.0)
+        self.modo_ataque          = False
+        self.alvo_ataque_selecionado = False
 
     def exibir_mensagem(self, texto: str) -> None:
         self.mensagem_tela  = texto

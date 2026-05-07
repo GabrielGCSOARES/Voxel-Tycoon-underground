@@ -1,6 +1,6 @@
 import pygame
 import random
-from config import COLS, ROWS, IMAGENS, MAP_WIDTH, HEIGHT, GRID_SIZE
+from config import COLS, ROWS, IMAGENS, IMAGENS_RIVAL, MAP_WIDTH, HEIGHT, GRID_SIZE
 
 class GerenciadorMundo:
     def __init__(self):
@@ -29,6 +29,13 @@ class GerenciadorMundo:
             2: [[0 for _ in range(COLS)] for _ in range(ROWS)],
             3: [[0 for _ in range(COLS)] for _ in range(ROWS)],
             4: [[0 for _ in range(COLS)] for _ in range(ROWS)]
+        }
+        self.superficie_owner = [[None for _ in range(COLS)] for _ in range(ROWS)]
+        self.cavernas_owner = {
+            1: [[None for _ in range(COLS)] for _ in range(ROWS)],
+            2: [[None for _ in range(COLS)] for _ in range(ROWS)],
+            3: [[None for _ in range(COLS)] for _ in range(ROWS)],
+            4: [[None for _ in range(COLS)] for _ in range(ROWS)]
         }
         self.camada_atual = "superficie"
         self.elevadores_cantos = {
@@ -65,6 +72,13 @@ class GerenciadorMundo:
             cid = int(self.camada_atual.split("_")[1])
             return self.upgrades_cavernas[cid]
 
+    def get_owner_ativo(self):
+        if self.camada_atual == "superficie":
+            return self.superficie_owner
+        else:
+            cid = int(self.camada_atual.split("_")[1])
+            return self.cavernas_owner[cid]
+
     def get_base_tile(self):
         return "grama" if self.camada_atual == "superficie" else "pedra"
 
@@ -85,6 +99,7 @@ class GerenciadorMundo:
         grid = self.get_grid_ativo()
         upgrades = self.get_upgrades_ativo()
         base = self.get_base_tile()
+        owners = self.get_owner_ativo()
         eh_caverna = self.camada_atual != "superficie"
 
         for y in range(ROWS):
@@ -97,8 +112,14 @@ class GerenciadorMundo:
                 screen.blit(IMAGENS[base], (sx, sy))
 
                 item_no_grid = grid[y][x]
+                owner = owners[y][x]
                 if item_no_grid != base and item_no_grid in IMAGENS:
-                    screen.blit(IMAGENS[item_no_grid], (sx, sy))
+                    image = IMAGENS_RIVAL[item_no_grid] if owner == "rival" else IMAGENS[item_no_grid]
+                    screen.blit(image, (sx, sy))
+
+                    if owner == "rival":
+                        pygame.draw.circle(screen, (170, 90, 230), (sx + GRID_SIZE - 10, sy + 10), 6)
+                        pygame.draw.circle(screen, (255, 255, 255), (sx + GRID_SIZE - 10, sy + 10), 2)
 
                     nivel = upgrades[y][x]
                     if nivel > 0 and item_no_grid != "elevador":

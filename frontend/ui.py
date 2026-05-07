@@ -94,7 +94,8 @@ def desenhar_painel(font, font_small, estado, mundo, npcs) -> None:
         screen.blit(font.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor),
                     (PANEL_X, Y_CONSTRUIR + 26 + i * ITEM_H))
 
-    y_mercado = Y_CONSTRUIR + 26 + len(lista) * ITEM_H + 14
+    y_oponente = Y_CONSTRUIR + 26 + len(lista) * ITEM_H + 14
+    y_mercado = npcs.desenhar_status_oponente(screen, font_small, MAP_WIDTH, y_oponente)
     npcs.desenhar_hud_mercado(screen, font_small, MAP_WIDTH, y_mercado)
 
 

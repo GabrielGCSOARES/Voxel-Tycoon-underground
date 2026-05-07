@@ -7,9 +7,14 @@ import pygame
 
 from config import CLICK_SOUND, COLS, CUSTOS, ITENS, ITENS_CAVERNA, MAP_WIDTH, RENDA_BASE, ROWS, WIDTH, XP_ITENS
 from ui import desenhar_modal_upgrade
+from interface_vila import InterfaceVila
+from batalha import gerenciador_batalha
 
 
-def processar_eventos(font, font_menu, estado, mundo, npcs, camera) -> None:
+interface_vila = InterfaceVila()
+
+
+def processar_eventos(font, font_menu, estado, mundo, npcs, camera, interface_ui) -> None:
     mouse = pygame.mouse.get_pos()
 
     for event in pygame.event.get():
@@ -22,6 +27,11 @@ def processar_eventos(font, font_menu, estado, mundo, npcs, camera) -> None:
             elif event.key == pygame.K_ESCAPE:
                 if estado.construcao_selecionada:
                     estado.construcao_selecionada = None
+                elif estado.modo_ataque:
+                    estado.modo_ataque = False
+                    estado.alvo_ataque_selecionado = False
+                elif interface_vila.mostrando_vila:
+                    interface_vila.mostrando_vila = False
                 else:
                     estado.estado = "menu"
 
@@ -30,14 +40,22 @@ def processar_eventos(font, font_menu, estado, mundo, npcs, camera) -> None:
                 if WIDTH//2 - 150 < mouse[0] < WIDTH//2 + 150:
                     if 300 < mouse[1] < 360:
                         estado.estado = "jogo"
+                        estado.vila_rival.gerar_vila_rival()
                         if CLICK_SOUND: CLICK_SOUND.play()
                     elif 380 < mouse[1] < 440:
                         pygame.quit(); sys.exit()
             elif estado.estado == "jogo":
-                if estado.construcao_selecionada:
+                if interface_vila.mostrando_vila:
+                    _handle_modal_vila(mouse, estado, interface_ui)
+                elif estado.modo_ataque:
+                    _handle_ataque(mouse, estado, interface_ui)
+                elif estado.construcao_selecionada:
                     _handle_modal(font, font_menu, mouse, estado, mundo)
                 elif mouse[0] < MAP_WIDTH:
-                    _handle_mapa(mouse, estado, mundo, npcs, camera)
+                    if interface_vila.desenhar_botao_vila(None, None, mouse):
+                        interface_vila.mostrando_vila = True
+                    else:
+                        _handle_mapa(mouse, estado, mundo, npcs, camera)
 
         if estado.estado == "jogo" and not estado.construcao_selecionada:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
@@ -119,6 +137,7 @@ def _handle_construir(gx, gy, grid, grid_up, estado, mundo, npcs) -> None:
             mundo.cavernas[int(mundo.camada_atual.split("_")[1])][gy][gx] = "elevador"
     else:
         grid[gy][gx] = item;  grid_up[gy][gx] = 1
+        mundo.get_owner_ativo()[gy][gx] = "player"
         estado.renda_passiva += RENDA_BASE[item]
         npcs.adicionar_npc(mundo.camada_atual, gx, gy)
     estado.dinheiro -= CUSTOS[item]

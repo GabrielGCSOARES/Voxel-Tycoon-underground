@@ -7,7 +7,7 @@ from typing import Final
 
 import pygame
 
-from config import COLS, GRID_SIZE, HEIGHT, MAP_WIDTH, ROWS
+from config import COLS, GRID_SIZE, HEIGHT, MAP_WIDTH, ROWS, ITENS, ITENS_CAVERNA, CUSTOS
 from mercado import (
     CAMADAS, EMPRESAS, MAX_CARRINHOS, Empresa,
     formatar_preco, mercado,
@@ -199,6 +199,79 @@ class NPC:
 # ─────────────────────────────────────────────────────────
 #  GERENCIADOR
 # ─────────────────────────────────────────────────────────
+class Oponente:
+    __slots__ = (
+        "nome", "cor", "dinheiro", "nivel", "xp", "construcoes",
+        "timer", "ultimo_item", "progresso",
+    )
+
+    def __init__(self) -> None:
+        self.nome         = "Rival"
+        self.cor          = (180, 100, 220)
+        self.dinheiro     = 400.0
+        self.nivel        = 1
+        self.xp           = 0
+        self.construcoes  = []
+        self.timer        = random.randint(180, 360)
+        self.ultimo_item  = ""
+        self.progresso    = 0
+
+    def atualizar(self, mundo) -> None:
+        self.dinheiro += 0.18
+        self.timer -= 1
+        if self.timer > 0:
+            return
+        self.timer = random.randint(180, 360)
+        grid = mundo.get_grid_ativo()
+        upgrades = mundo.get_upgrades_ativo()
+        owners = mundo.get_owner_ativo()
+        base = mundo.get_base_tile()
+        if mundo.camada_atual == "superficie":
+            itens = ["palacio", "cachoeira", "silo", "fazenda"]
+        else:
+            itens = ["cripto", "reator", "laboratorio"]
+        vazios = [
+            (gx, gy) for gy in range(ROWS) for gx in range(COLS)
+            if grid[gy][gx] == base and owners[gy][gx] is None
+        ]
+        if not vazios:
+            return
+        item = random.choice(itens)
+        custo = CUSTOS[item]
+        if self.dinheiro < custo:
+            return
+        gx, gy = random.choice(vazios)
+        grid[gy][gx] = item
+        upgrades[gy][gx] = 1
+        owners[gy][gx] = "rival"
+        self.dinheiro -= custo
+        self.ultimo_item = item
+        self.progresso += 1
+        self.construcoes.append((mundo.camada_atual, gx, gy, item))
+        self.xp += 15
+        if self.xp >= 100:
+            self.xp -= 100
+            self.nivel += 1
+
+    def desenhar(self, screen: pygame.Surface, camera, camada_atual: str) -> None:
+        for camada, gx, gy, item in self.construcoes:
+            if camada != camada_atual:
+                continue
+            sx, sy = camera.aplicar(gx * GRID_SIZE, gy * GRID_SIZE)
+            pygame.draw.circle(screen, self.cor, (sx + GRID_SIZE - 10, sy + 10), 6)
+            pygame.draw.line(screen, (255, 255, 255), (sx + GRID_SIZE - 14, sy + 10),
+                             (sx + GRID_SIZE - 8, sy + 10), 2)
+
+    def resumo(self) -> tuple[str, str, str, int, str]:
+        return (
+            self.nome,
+            f"Constr: {self.progresso}",
+            f"Nivel: {self.nivel}",
+            int(self.dinheiro),
+            self.ultimo_item or "nenhum"
+        )
+
+
 class GerenciadorNPCs:
     """Fachada pública: adicionar_npc, atualizar, desenhar, desenhar_hud_mercado."""
 
@@ -206,6 +279,7 @@ class GerenciadorNPCs:
         self._npcs      = {c: [] for c in CAMADAS}
         self._carrinhos = {c: [] for c in CAMADAS if c != "superficie"}
         self._contagem  = {c: {e.nome: 0 for e in EMPRESAS} for c in CAMADAS}
+        self._oponente  = Oponente()
 
     def adicionar_npc(self, camada: str, gx: int, gy: int) -> None:
         emp = random.choice(EMPRESAS)
@@ -217,12 +291,15 @@ class GerenciadorNPCs:
             if sum(1 for c in lista if c.empresa == emp.nome) < MAX_CARRINHOS:
                 lista.append(CarrinhoMineracao(emp, gx, gy))
 
-    def atualizar(self, camada_atual: str, grid: list) -> None:
+    def atualizar(self, mundo) -> None:
+        camada_atual = mundo.camada_atual
+        grid = mundo.get_grid_ativo()
         for npc in self._npcs.get(camada_atual, []):
             npc.atualizar(grid)
         if camada_atual.startswith("caverna_"):
             for c in self._carrinhos.get(camada_atual, []):
                 c.atualizar(grid)
+        self._oponente.atualizar(mundo)
         global_cnt: dict[str, int] = {e.nome: 0 for e in EMPRESAS}
         for dados in self._contagem.values():
             for nome, qtd in dados.items():
@@ -235,6 +312,18 @@ class GerenciadorNPCs:
         if camada_atual.startswith("caverna_"):
             for c in self._carrinhos.get(camada_atual, []):
                 c.desenhar(screen, camera)
+        self._oponente.desenhar(screen, camera, camada_atual)
+
+    def desenhar_status_oponente(self, screen: pygame.Surface, font_small: pygame.font.Font,
+                                 painel_x: int, y_inicio: int) -> int:
+        nome, builds, nivel, dinheiro, ultimo = self._oponente.resumo()
+        screen.blit(font_small.render(f"{nome}", True, self._oponente.cor), (painel_x, y_inicio))
+        screen.blit(font_small.render(f"{builds}", True, (200, 200, 200)), (painel_x, y_inicio + 14))
+        screen.blit(font_small.render(f"{nivel}", True, (200, 200, 200)), (painel_x, y_inicio + 28))
+        screen.blit(font_small.render(f"${dinheiro:,}", True, (180, 180, 255)), (painel_x, y_inicio + 42))
+        screen.blit(font_small.render(f"Último: {ultimo}", True, (180, 180, 255)), (painel_x, y_inicio + 56))
+        screen.blit(font_small.render("Rival construindo no mesmo mapa", True, (150, 150, 150)), (painel_x, y_inicio + 76))
+        return y_inicio + 96
 
     def desenhar_hud_mercado(self, screen: pygame.Surface, font_small: pygame.font.Font,
                               painel_x: int, y_inicio: int) -> None:
