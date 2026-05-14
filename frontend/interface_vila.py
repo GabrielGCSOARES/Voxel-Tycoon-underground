@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pygame
 from vila import Vila, Tropa
-from config import WIDTH, HEIGHT, BRANCO, DOURADO, VERDE, CINZA
+from config import WIDTH, HEIGHT, BRANCO, DOURADO, VERDE, CINZA, MAP_WIDTH
 
 
 class InterfaceVila:
@@ -13,11 +13,12 @@ class InterfaceVila:
         self.mostrando_vila = False
         self.mostrando_ataque = False
         self.modal_confirmacao = False
+        self.btn_batalha_rect = None
 
     def desenhar_botao_vila(
         self,
-        screen: pygame.Surface,
-        font: pygame.font.Font,
+        screen: pygame.Surface | None,
+        font: pygame.font.Font | None,
         mouse_pos: tuple[int, int],
     ) -> bool:
         """Desenha botão para acessar a vila. Retorna True se clicado."""
@@ -26,11 +27,13 @@ class InterfaceVila:
         rect = pygame.Rect(x, y, w, h)
         hover = rect.collidepoint(mouse_pos)
 
-        cor = (60, 170, 60) if hover else (40, 40, 50)
-        pygame.draw.rect(screen, cor, rect, border_radius=8)
-        pygame.draw.rect(screen, BRANCO, rect, 2, border_radius=8)
-        txt = font.render("VILA", True, BRANCO)
-        screen.blit(txt, (x + w // 2 - txt.get_width() // 2, y + h // 2 - txt.get_height() // 2))
+        if screen:
+            cor = (60, 170, 60) if hover else (40, 40, 50)
+            pygame.draw.rect(screen, cor, rect, border_radius=8)
+            pygame.draw.rect(screen, BRANCO, rect, 2, border_radius=8)
+            if font:
+                txt = font.render("VILA", True, BRANCO)
+                screen.blit(txt, (x + w // 2 - txt.get_width() // 2, y + h // 2 - txt.get_height() // 2))
 
         return hover
 
@@ -50,20 +53,24 @@ class InterfaceVila:
         pygame.draw.rect(screen, DOURADO, (cx, cy, W, H), 3, border_radius=15)
 
         # Título
-        screen.blit(font.render("SUAS VILA", True, BRANCO), (cx + 20, cy + 15))
+        if font:
+            screen.blit(font.render("SUAS VILA", True, BRANCO), (cx + 20, cy + 15))
 
         # Info da vila
         y_info = cy + 60
         nome, nivel, saude, dinheiro = vila_jogador.resumo()
-        screen.blit(font_small.render(f"Nível: {nivel}", True, BRANCO), (cx + 20, y_info))
-        screen.blit(font_small.render(f"Saúde: {saude}/{int(vila_jogador.saude_total)}", True, VERDE), (cx + 20, y_info + 28))
-        screen.blit(font_small.render(f"Dinheiro: ${dinheiro:,}", True, DOURADO), (cx + 20, y_info + 56))
+        if font_small:
+            screen.blit(font_small.render(f"Nível: {nivel}", True, BRANCO), (cx + 20, y_info))
+            screen.blit(font_small.render(f"Saúde: {saude}/{int(vila_jogador.saude_total)}", True, VERDE), (cx + 20, y_info + 28))
+            screen.blit(font_small.render(f"Dinheiro: ${dinheiro:,}", True, DOURADO), (cx + 20, y_info + 56))
 
         # Construções
         y_const = y_info + 100
-        screen.blit(font_small.render("Construções:", True, (200, 200, 200)), (cx + 20, y_const))
+        if font_small:
+            screen.blit(font_small.render("Construções:", True, (200, 200, 200)), (cx + 20, y_const))
         for i, (tipo, qtd) in enumerate(vila_jogador.construcoes.items()):
-            screen.blit(font_small.render(f"  {tipo.upper()}: {qtd}", True, BRANCO), (cx + 40, y_const + 25 + i * 20))
+            if font_small:
+                screen.blit(font_small.render(f"  {tipo.upper()}: {qtd}", True, BRANCO), (cx + 40, y_const + 25 + i * 20))
 
         # Botões de ação
         btn_ataque = pygame.Rect(cx + 20, cy + H - 60, 200, 40)
@@ -151,3 +158,71 @@ class InterfaceVila:
         screen.blit(font_small.render("FECHAR", True, (0, 0, 0)), (btn_fechar.x + 30, btn_fechar.y + 8))
 
         return btn_fechar.collidepoint(pygame.mouse.get_pos())
+
+    def desenhar_vila_rival_mapa(self, screen: pygame.Surface, camera, vila_rival: Vila, font_small: pygame.font.Font | None) -> None:
+        """Desenha a vila rival visualmente no mapa quando na borda."""
+        # Verificar se a vila rival tem construções
+        if not vila_rival.construcoes:
+            print(f"DEBUG: Vila rival sem construções. Construções: {vila_rival.construcoes}")
+            return
+        
+        # Posição da vila rival no mapa (bordas) - fixa no centro da tela
+        vila_x = 50  # Posição fixa na tela
+        vila_y = 50  # Posição fixa na tela
+        
+        print(f"DEBUG: Exibindo vila rival em ({vila_x}, {vila_y}). Construções: {len(vila_rival.construcoes)}")
+        
+        # Fundo da vila
+        pygame.draw.rect(screen, (50, 50, 60), (vila_x, vila_y, 200, 180), border_radius=10)
+        pygame.draw.rect(screen, DOURADO, (vila_x, vila_y, 200, 180), 2, border_radius=10)
+        
+        # Título
+        if font_small:
+            txt = font_small.render("Vila Rival", True, BRANCO)
+            screen.blit(txt, (vila_x + 10, vila_y + 10))
+        
+        # Construções como ícones no mapa
+        y_offset = vila_y + 40
+        icon_size = 24
+        spacing = 35
+        
+        for i, (tipo, qtd) in enumerate(vila_rival.construcoes.items()):
+            if i >= 4:  # Limitar a 4 construções visíveis
+                break
+            # Desenhar ícone da construção
+            icon_x = vila_x + 15 + (i % 2) * spacing
+            icon_y = y_offset + (i // 2) * spacing
+            
+            # Cor baseada no tipo
+            if tipo == "palacio":
+                cor = (255, 215, 0)  # Dourado
+            elif tipo == "cachoeira":
+                cor = (100, 200, 255)  # Azul
+            elif tipo == "silo":
+                cor = (150, 100, 50)  # Marrom
+            elif tipo == "fazenda":
+                cor = (50, 150, 50)  # Verde
+            else:
+                cor = (100, 100, 100)  # Cinza
+            
+            pygame.draw.rect(screen, cor, (icon_x, icon_y, icon_size, icon_size), border_radius=3)
+            pygame.draw.rect(screen, BRANCO, (icon_x, icon_y, icon_size, icon_size), 1, border_radius=3)
+            
+            # Quantidade
+            if font_small:
+                qty_txt = font_small.render(f"x{qtd}", True, BRANCO)
+                screen.blit(qty_txt, (icon_x + icon_size + 5, icon_y + 5))
+        
+        # Botão Batalhar
+        btn_x, btn_y = vila_x + 50, vila_y + 145
+        btn_w, btn_h = 100, 25
+        btn_rect = pygame.Rect(btn_x, btn_y, btn_w, btn_h)
+        hover = btn_rect.collidepoint(pygame.mouse.get_pos())
+        cor = (200, 50, 50) if hover else (150, 50, 50)
+        pygame.draw.rect(screen, cor, btn_rect, border_radius=5)
+        pygame.draw.rect(screen, BRANCO, btn_rect, 2, border_radius=5)
+        if font_small:
+            txt = font_small.render("Batalhar", True, BRANCO)
+            screen.blit(txt, (btn_x + btn_w // 2 - txt.get_width() // 2, btn_y + btn_h // 2 - txt.get_height() // 2))
+        
+        self.btn_batalha_rect = btn_rect

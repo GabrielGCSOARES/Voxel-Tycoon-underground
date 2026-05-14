@@ -1,7 +1,15 @@
 import pygame, os
 
 pygame.init()
-pygame.mixer.init()
+try:
+    pygame.mixer.init()
+except NotImplementedError:
+    pass  # Mixer não disponível, continuar sem som
+
+try:
+    pygame.font.init()
+except NotImplementedError:
+    pass  # Font não disponível
 
 # ---------------- TELA E GRID ----------------
 info = pygame.display.Info()
@@ -145,16 +153,19 @@ def carregar_imagens():
 
     print(f"\n--- BUSCANDO ASSETS EM: {ASSETS_DIR} ---\n")
 
+    # Verificar se pygame.image está disponível
+    image_available = hasattr(pygame, 'image') and pygame.image.get_extended()
+    
     for chave, nome_arquivo in arquivos.items():
         caminho_completo = os.path.join(ASSETS_DIR, nome_arquivo)
 
         try:
-            if os.path.exists(caminho_completo):
+            if image_available and os.path.exists(caminho_completo):
                 img = pygame.image.load(caminho_completo).convert_alpha()
                 IMAGENS[chave] = escalar(img)
                 print(f"{nome_arquivo} carregado.")
             else:
-                print(f"NÃO ENCONTRADO: {caminho_completo}")
+                print(f"NÃO ENCONTRADO ou IMAGE MODULE INDISPONÍVEL: {caminho_completo}")
         except Exception as e:
             print(f"ERRO AO ABRIR {nome_arquivo}: {e}")
 

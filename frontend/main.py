@@ -27,6 +27,14 @@ def render_jogo(font, font_menu, font_small, estado, mundo, npcs, camera, interf
     npcs.desenhar(screen, camera, mundo.camada_atual)
     desenhar_painel(font, font_small, estado, mundo, npcs)
     
+    # Verificar se câmera está na borda do mar
+    na_borda = camera.na_borda_mar()
+    print(f"DEBUG: na_borda={na_borda}, camada={mundo.camada_atual}, construcoes={len(estado.vila_rival.construcoes)}")
+    if na_borda and mundo.camada_atual == "superficie":
+        interface_vila.desenhar_vila_rival_mapa(screen, camera, estado.vila_rival, font_small)
+    else:
+        interface_vila.mostrando_batalha_borda = False
+    
     # Atualizar vilas
     estado.vila_jogador.atualizar()
     estado.vila_rival.atualizar()
@@ -37,10 +45,6 @@ def render_jogo(font, font_menu, font_small, estado, mundo, npcs, camera, interf
         if resultado:
             gerenciador_batalha.finalizador_invasao(estado.vila_rival, estado.vila_jogador)
             estado.exibir_mensagem(f"Batalha terminada! {'Vitória!' if resultado['vitoria'] else 'Derrota!'}")
-    
-    # Desenhar botão de vila
-    if interface_vila.desenhar_botao_vila(screen, font_small, pygame.mouse.get_pos()):
-        pass  # Será clicado via eventos
     
     # Renderizar modais
     if interface_vila.mostrando_vila:
@@ -59,7 +63,7 @@ def render_jogo(font, font_menu, font_small, estado, mundo, npcs, camera, interf
             screen, font_small, font, estado.vila_rival
         )
 
-    if estado.tempo_mensagem > 0:
+    if estado.tempo_mensagem > 0 and font_menu:
         txt = font_menu.render(estado.mensagem_tela, True, (255, 50, 50))
         screen.blit(txt, (MAP_WIDTH//2 - txt.get_width()//2,
                           HEIGHT//2   - txt.get_height()//2))

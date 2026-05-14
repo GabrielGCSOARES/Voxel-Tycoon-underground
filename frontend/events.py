@@ -45,17 +45,23 @@ def processar_eventos(font, font_menu, estado, mundo, npcs, camera, interface_ui
                     elif 380 < mouse[1] < 440:
                         pygame.quit(); sys.exit()
             elif estado.estado == "jogo":
-                if interface_vila.mostrando_vila:
+                # Verificar clique no botão batalhar quando na borda
+                if camera.na_borda_mar() and mundo.camada_atual == "superficie" and interface_vila.btn_batalha_rect and interface_vila.btn_batalha_rect.collidepoint(mouse):
+                    # Iniciar batalha
+                    try:
+                        invasao = gerenciador_batalha.iniciar_invasao(estado.vila_rival, "Jogador", 1)
+                        estado.exibir_mensagem("Batalha iniciada contra vila rival!")
+                        if CLICK_SOUND: CLICK_SOUND.play()
+                    except ValueError as e:
+                        estado.exibir_mensagem(str(e))
+                elif interface_vila.mostrando_vila:
                     _handle_modal_vila(mouse, estado, interface_ui)
                 elif estado.modo_ataque:
                     _handle_ataque(mouse, estado, interface_ui)
                 elif estado.construcao_selecionada:
                     _handle_modal(font, font_menu, mouse, estado, mundo)
                 elif mouse[0] < MAP_WIDTH:
-                    if interface_vila.desenhar_botao_vila(None, None, mouse):
-                        interface_vila.mostrando_vila = True
-                    else:
-                        _handle_mapa(mouse, estado, mundo, npcs, camera)
+                    _handle_mapa(mouse, estado, mundo, npcs, camera)
 
         if estado.estado == "jogo" and not estado.construcao_selecionada:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:

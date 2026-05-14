@@ -29,3 +29,20 @@ class Camera:
     def resetar(self):
         self.offset_x = 0
         self.offset_y = 0
+
+    def na_borda_mar(self):
+        mapa_pixel_w = COLS * GRID_SIZE
+        mapa_pixel_h = ROWS * GRID_SIZE
+        padding_x = MAP_WIDTH // 2
+        padding_y = HEIGHT // 2
+        min_x = MAP_WIDTH - mapa_pixel_w - padding_x
+        max_x = padding_x
+        min_y = HEIGHT - mapa_pixel_h - padding_y
+        max_y = padding_y
+        
+        # Verificar se está na borda (simplificado para ser mais permissivo)
+        # Se o offset está próximo dos limites que a câmera pode alcançar
+        na_borda_x = (self.offset_x <= min_x + 50) or (self.offset_x >= max_x - 50)
+        na_borda_y = (self.offset_y <= min_y + 50) or (self.offset_y >= max_y - 50)
+        
+        return na_borda_x or na_borda_y

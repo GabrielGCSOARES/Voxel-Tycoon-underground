@@ -4,7 +4,10 @@ from config import COLS, ROWS, IMAGENS, IMAGENS_RIVAL, MAP_WIDTH, HEIGHT, GRID_S
 
 class GerenciadorMundo:
     def __init__(self):
-        self.font_nivel = pygame.font.SysFont("arial", 14, bold=True)
+        try:
+            self.font_nivel = pygame.font.SysFont("arial", 14, bold=True)
+        except NotImplementedError:
+            self.font_nivel = None  # Font não disponível
         self._gerar_ruido_caverna()
         self.reset()
 
@@ -122,6 +125,6 @@ class GerenciadorMundo:
                         pygame.draw.circle(screen, (255, 255, 255), (sx + GRID_SIZE - 10, sy + 10), 2)
 
                     nivel = upgrades[y][x]
-                    if nivel > 0 and item_no_grid != "elevador":
+                    if nivel > 0 and item_no_grid != "elevador" and self.font_nivel:
                         txt_nivel = self.font_nivel.render(f"Lv.{nivel}", True, (255, 255, 255))
                         screen.blit(txt_nivel, (sx + 2, sy + 2))

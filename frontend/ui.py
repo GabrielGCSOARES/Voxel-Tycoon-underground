@@ -22,15 +22,15 @@ ONDA_ESPC_Y    = 40
 
 
 # ── Fontes ───────────────────────────────────────────────
-def carregar_fontes() -> tuple[pygame.font.Font, pygame.font.Font, pygame.font.Font]:
+def carregar_fontes() -> tuple[pygame.font.Font | None, pygame.font.Font | None, pygame.font.Font | None]:
     try:
         return (
             pygame.font.SysFont("arial", 22),
             pygame.font.SysFont("arial", 45, bold=True),
             pygame.font.SysFont("arial", 13, bold=True),
         )
-    except Exception:
-        return pygame.font.Font(None, 24), pygame.font.Font(None, 45), pygame.font.Font(None, 14)
+    except NotImplementedError:
+        return (None, None, None)  # Fonts não disponíveis
 
 
 # ── Fundo ────────────────────────────────────────────────
@@ -56,15 +56,17 @@ def desenhar_botao_menu(font, texto: str, y_pos: int, mouse_pos: tuple) -> bool:
     cor   = (60, 170, 60) if hover else (40, 40, 50)
     pygame.draw.rect(screen, cor,    (x, y_pos, BTN_W, BTN_H), border_radius=10)
     pygame.draw.rect(screen, BRANCO, (x, y_pos, BTN_W, BTN_H), 2, border_radius=10)
-    txt = font.render(texto, True, BRANCO)
-    screen.blit(txt, (WIDTH//2 - txt.get_width()//2,
-                      y_pos + BTN_H//2 - txt.get_height()//2))
+    if font:
+        txt = font.render(texto, True, BRANCO)
+        screen.blit(txt, (WIDTH//2 - txt.get_width()//2,
+                          y_pos + BTN_H//2 - txt.get_height()//2))
     return hover
 
 
 def render_menu(font, font_menu, mouse_pos: tuple) -> None:
-    titulo = font_menu.render("VOXEL TYCOON", True, DOURADO)
-    screen.blit(titulo, (WIDTH//2 - titulo.get_width()//2, 150))
+    if font_menu:
+        titulo = font_menu.render("VOXEL TYCOON", True, DOURADO)
+        screen.blit(titulo, (WIDTH//2 - titulo.get_width()//2, 150))
     desenhar_botao_menu(font, "INICIAR JOGO",      300, mouse_pos)
     desenhar_botao_menu(font, "SAIR PARA DESKTOP", 380, mouse_pos)
 
@@ -73,8 +75,9 @@ def render_menu(font, font_menu, mouse_pos: tuple) -> None:
 def desenhar_painel(font, font_small, estado, mundo, npcs) -> None:
     pygame.draw.rect(screen, (30, 34, 40), (MAP_WIDTH, 0, PANEL_WIDTH, HEIGHT))
     cor_camada = VERDE if mundo.camada_atual == "superficie" else DOURADO
-    screen.blit(font.render(f"MAPA: {mundo.camada_atual.upper()}", True, cor_camada),
-                (PANEL_X, 65))
+    if font:
+        screen.blit(font.render(f"MAPA: {mundo.camada_atual.upper()}", True, cor_camada),
+                    (PANEL_X, 65))
     ganho = estado.renda_passiva * 60
     for i, txt in enumerate((
         f"Dinheiro: ${int(estado.dinheiro):,}",
@@ -83,16 +86,19 @@ def desenhar_painel(font, font_small, estado, mundo, npcs) -> None:
         f"XP: {estado.xp}/{estado.xp_max}",
         f"Populacao: {estado.populacao}",
     )):
-        screen.blit(font.render(txt, True, BRANCO), (PANEL_X, 105 + i * 30))
+        if font:
+            screen.blit(font.render(txt, True, BRANCO), (PANEL_X, 105 + i * 30))
 
     lista = ITENS_CAVERNA if mundo.camada_atual != "superficie" else ITENS
-    screen.blit(font.render("CONSTRUIR (1-6):", True, (150, 150, 150)), (PANEL_X, Y_CONSTRUIR))
+    if font:
+        screen.blit(font.render("CONSTRUIR (1-6):", True, (150, 150, 150)), (PANEL_X, Y_CONSTRUIR))
     for i, item in enumerate(lista):
         custo = CUSTOS[item]
         cor   = (DOURADO if i == estado.selected_index
                  else (180, 60, 60) if estado.dinheiro < custo else BRANCO)
-        screen.blit(font.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor),
-                    (PANEL_X, Y_CONSTRUIR + 26 + i * ITEM_H))
+        if font:
+            screen.blit(font.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor),
+                        (PANEL_X, Y_CONSTRUIR + 26 + i * ITEM_H))
 
     y_oponente = Y_CONSTRUIR + 26 + len(lista) * ITEM_H + 14
     y_mercado = npcs.desenhar_status_oponente(screen, font_small, MAP_WIDTH, y_oponente)
@@ -116,10 +122,12 @@ def desenhar_modal_upgrade(font, font_menu, estado) -> dict | None:
     renda_nx  = base * (1.5 **  nivel_atual)      * 60
     custo_up  = CUSTOS[item] * (2 ** nivel_atual)
 
-    screen.blit(font_menu.render(item.upper(), True, BRANCO),                         (cx+20, cy+20))
-    screen.blit(font.render(f"Nivel Atual: {nivel_atual}", True, (200,200,200)),       (cx+20, cy+70))
-    screen.blit(font.render(f"Renda: ${renda_at:.1f}/s -> ${renda_nx:.1f}/s", True, VERDE), (cx+20, cy+100))
-    screen.blit(font.render(f"Custo Upgrade: ${custo_up:,}", True, DOURADO),           (cx+20, cy+130))
+    if font_menu:
+        screen.blit(font_menu.render(item.upper(), True, BRANCO),                         (cx+20, cy+20))
+    if font:
+        screen.blit(font.render(f"Nivel Atual: {nivel_atual}", True, (200,200,200)),       (cx+20, cy+70))
+        screen.blit(font.render(f"Renda: ${renda_at:.1f}/s -> ${renda_nx:.1f}/s", True, VERDE), (cx+20, cy+100))
+        screen.blit(font.render(f"Custo Upgrade: ${custo_up:,}", True, DOURADO),           (cx+20, cy+130))
 
     btn_up  = pygame.Rect(cx+20,  cy+180, 140, 40)
     btn_fx  = pygame.Rect(cx+190, cy+180, 140, 40)
