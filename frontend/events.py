@@ -1,20 +1,12 @@
 """events.py — Processamento de eventos de input e câmera."""
 from __future__ import annotations
-
 import sys
-
 import pygame
-
 from config import CLICK_SOUND, COLS, CUSTOS, ITENS, ITENS_CAVERNA, MAP_WIDTH, RENDA_BASE, ROWS, WIDTH, XP_ITENS
 from ui import desenhar_modal_upgrade
-from interface_vila import InterfaceVila
-from batalha import gerenciador_batalha
 
 
-interface_vila = InterfaceVila()
-
-
-def processar_eventos(font, font_menu, estado, mundo, npcs, camera, interface_ui) -> None:
+def processar_eventos(font, font_menu, estado, mundo, npcs, camera) -> None:
     mouse = pygame.mouse.get_pos()
 
     for event in pygame.event.get():
@@ -23,15 +15,13 @@ def processar_eventos(font, font_menu, estado, mundo, npcs, camera, interface_ui
 
         if event.type == pygame.KEYDOWN:
             if pygame.K_1 <= event.key <= pygame.K_6:
-                estado.selected_index = event.key - pygame.K_1
+                lista = ITENS_CAVERNA if mundo.camada_atual != "superficie" else ITENS
+                indice = event.key - pygame.K_1
+                if indice < len(lista):
+                    estado.selected_index = indice
             elif event.key == pygame.K_ESCAPE:
                 if estado.construcao_selecionada:
                     estado.construcao_selecionada = None
-                elif estado.modo_ataque:
-                    estado.modo_ataque = False
-                    estado.alvo_ataque_selecionado = False
-                elif interface_vila.mostrando_vila:
-                    interface_vila.mostrando_vila = False
                 else:
                     estado.estado = "menu"
 
@@ -40,25 +30,12 @@ def processar_eventos(font, font_menu, estado, mundo, npcs, camera, interface_ui
                 if WIDTH//2 - 150 < mouse[0] < WIDTH//2 + 150:
                     if 300 < mouse[1] < 360:
                         estado.estado = "jogo"
-                        estado.vila_rival.gerar_vila_rival()
+                        estado.vila_rival.gerar_rival()
                         if CLICK_SOUND: CLICK_SOUND.play()
                     elif 380 < mouse[1] < 440:
                         pygame.quit(); sys.exit()
             elif estado.estado == "jogo":
-                # Verificar clique no botão batalhar quando na borda
-                if camera.na_borda_mar() and mundo.camada_atual == "superficie" and interface_vila.btn_batalha_rect and interface_vila.btn_batalha_rect.collidepoint(mouse):
-                    # Iniciar batalha
-                    try:
-                        invasao = gerenciador_batalha.iniciar_invasao(estado.vila_rival, "Jogador", 1)
-                        estado.exibir_mensagem("Batalha iniciada contra vila rival!")
-                        if CLICK_SOUND: CLICK_SOUND.play()
-                    except ValueError as e:
-                        estado.exibir_mensagem(str(e))
-                elif interface_vila.mostrando_vila:
-                    _handle_modal_vila(mouse, estado, interface_ui)
-                elif estado.modo_ataque:
-                    _handle_ataque(mouse, estado, interface_ui)
-                elif estado.construcao_selecionada:
+                if estado.construcao_selecionada:
                     _handle_modal(font, font_menu, mouse, estado, mundo)
                 elif mouse[0] < MAP_WIDTH:
                     _handle_mapa(mouse, estado, mundo, npcs, camera)
@@ -78,7 +55,6 @@ def processar_eventos(font, font_menu, estado, mundo, npcs, camera, interface_ui
         camera.limitar()
 
 
-# ── Handlers internos ────────────────────────────────────
 def _handle_modal(font, font_menu, pos, estado, mundo) -> None:
     botoes = desenhar_modal_upgrade(font, font_menu, estado)
     if not botoes:
@@ -92,8 +68,7 @@ def _handle_modal(font, font_menu, pos, estado, mundo) -> None:
         grid_up = mundo.get_upgrades_ativo()
         grid_up[botoes["gy"]][botoes["gx"]] += 1
         n = botoes["nivel"]
-        estado.renda_passiva += (RENDA_BASE[botoes["item"]] *
-                                  (1.5**n - 1.5**(n-1)))
+        estado.renda_passiva += RENDA_BASE[botoes["item"]] * (1.5**n - 1.5**(n-1))
         estado.construcao_selecionada = None
         if CLICK_SOUND: CLICK_SOUND.play()
 
@@ -109,8 +84,21 @@ def _handle_mapa(pos, estado, mundo, npcs, camera) -> None:
     if tile == "elevador":
         _handle_elevador(gx, gy, estado, mundo)
     elif tile != mundo.get_base_tile():
-        estado.construcao_selecionada = (gx, gy, tile, grid_up[gy][gx])
-        if CLICK_SOUND: CLICK_SOUND.play()
+        # Clicou numa construção destruída? Tenta reconstruir
+        c = estado.vila_jogador.get_construcao(gx, gy, mundo.camada_atual)
+        if c and c.destruida and not c.reconstruindo:
+            if estado.vila_jogador.gastar_reconstrucao(c):
+                estado.quests.on_reconstrucao()
+                estado.exibir_mensagem(f"Reconstruindo {c.tipo}...")
+                if CLICK_SOUND: CLICK_SOUND.play()
+            else:
+                custo = c.custo_reconstrucao()
+                estado.exibir_mensagem(
+                    f"Sem recursos! Precisa: {custo['madeira']} madeira, {custo['pedra']} pedra"
+                )
+        else:
+            estado.construcao_selecionada = (gx, gy, tile, grid_up[gy][gx])
+            if CLICK_SOUND: CLICK_SOUND.play()
     else:
         _handle_construir(gx, gy, grid, grid_up, estado, mundo, npcs)
 
@@ -132,6 +120,8 @@ def _handle_elevador(gx, gy, estado, mundo) -> None:
 
 def _handle_construir(gx, gy, grid, grid_up, estado, mundo, npcs) -> None:
     lista = ITENS_CAVERNA if mundo.camada_atual != "superficie" else ITENS
+    if estado.selected_index >= len(lista):
+        estado.selected_index = len(lista) - 1
     item  = lista[estado.selected_index]
     if estado.dinheiro < CUSTOS[item]:
         return
@@ -142,10 +132,15 @@ def _handle_construir(gx, gy, grid, grid_up, estado, mundo, npcs) -> None:
         else:
             mundo.cavernas[int(mundo.camada_atual.split("_")[1])][gy][gx] = "elevador"
     else:
-        grid[gy][gx] = item;  grid_up[gy][gx] = 1
-        mundo.get_owner_ativo()[gy][gx] = "player"
+        grid[gy][gx] = item
+        grid_up[gy][gx] = 1
         estado.renda_passiva += RENDA_BASE[item]
         npcs.adicionar_npc(mundo.camada_atual, gx, gy)
+        # Registra na vila (para HP e recursos)
+        estado.vila_jogador.registrar_construcao(item, gx, gy, mundo.camada_atual)
+        # Notifica quests
+        estado.quests.on_construir(item, mundo.camada_atual)
+
     estado.dinheiro -= CUSTOS[item]
     estado.ganhar_xp(XP_ITENS[item])
     if CLICK_SOUND: CLICK_SOUND.play()

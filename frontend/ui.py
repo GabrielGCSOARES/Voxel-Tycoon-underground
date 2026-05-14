@@ -13,8 +13,8 @@ from config import (
 
 # ── Constantes de layout ─────────────────────────────────
 BTN_W, BTN_H   = 300, 60
-Y_CONSTRUIR    = 270
-ITEM_H         = 28
+Y_CONSTRUIR    = 180
+ITEM_H         = 20
 PANEL_X        = MAP_WIDTH + 20
 OVERLAY_ALPHA  = 128
 ONDA_ESPC_X    = 60
@@ -72,12 +72,12 @@ def render_menu(font, font_menu, mouse_pos: tuple) -> None:
 
 
 # ── Painel lateral ───────────────────────────────────────
-def desenhar_painel(font, font_small, estado, mundo, npcs) -> None:
+def desenhar_painel(font, font_small, estado, mundo, npcs) -> int:
     pygame.draw.rect(screen, (30, 34, 40), (MAP_WIDTH, 0, PANEL_WIDTH, HEIGHT))
     cor_camada = VERDE if mundo.camada_atual == "superficie" else DOURADO
     if font:
         screen.blit(font.render(f"MAPA: {mundo.camada_atual.upper()}", True, cor_camada),
-                    (PANEL_X, 65))
+                    (PANEL_X, 20))
     ganho = estado.renda_passiva * 60
     for i, txt in enumerate((
         f"Dinheiro: ${int(estado.dinheiro):,}",
@@ -86,23 +86,21 @@ def desenhar_painel(font, font_small, estado, mundo, npcs) -> None:
         f"XP: {estado.xp}/{estado.xp_max}",
         f"Populacao: {estado.populacao}",
     )):
-        if font:
-            screen.blit(font.render(txt, True, BRANCO), (PANEL_X, 105 + i * 30))
+        if font_small:
+            screen.blit(font_small.render(txt, True, BRANCO), (PANEL_X, 55 + i * 20))
 
     lista = ITENS_CAVERNA if mundo.camada_atual != "superficie" else ITENS
-    if font:
-        screen.blit(font.render("CONSTRUIR (1-6):", True, (150, 150, 150)), (PANEL_X, Y_CONSTRUIR))
+    if font_small:
+        screen.blit(font_small.render(f"CONSTRUIR (1-{len(lista)}):", True, (150, 150, 150)), (PANEL_X, Y_CONSTRUIR))
     for i, item in enumerate(lista):
         custo = CUSTOS[item]
         cor   = (DOURADO if i == estado.selected_index
                  else (180, 60, 60) if estado.dinheiro < custo else BRANCO)
-        if font:
-            screen.blit(font.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor),
+        if font_small:
+            screen.blit(font_small.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor),
                         (PANEL_X, Y_CONSTRUIR + 26 + i * ITEM_H))
 
-    y_oponente = Y_CONSTRUIR + 26 + len(lista) * ITEM_H + 14
-    y_mercado = npcs.desenhar_status_oponente(screen, font_small, MAP_WIDTH, y_oponente)
-    npcs.desenhar_hud_mercado(screen, font_small, MAP_WIDTH, y_mercado)
+    return Y_CONSTRUIR + 26 + len(lista) * ITEM_H + 12
 
 
 # ── Modal de upgrade ─────────────────────────────────────

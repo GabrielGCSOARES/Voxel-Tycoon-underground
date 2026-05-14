@@ -317,19 +317,21 @@ class GerenciadorNPCs:
     def desenhar_status_oponente(self, screen: pygame.Surface, font_small: pygame.font.Font,
                                  painel_x: int, y_inicio: int) -> int:
         nome, builds, nivel, dinheiro, ultimo = self._oponente.resumo()
-        screen.blit(font_small.render(f"{nome}", True, self._oponente.cor), (painel_x, y_inicio))
-        screen.blit(font_small.render(f"{builds}", True, (200, 200, 200)), (painel_x, y_inicio + 14))
-        screen.blit(font_small.render(f"{nivel}", True, (200, 200, 200)), (painel_x, y_inicio + 28))
-        screen.blit(font_small.render(f"${dinheiro:,}", True, (180, 180, 255)), (painel_x, y_inicio + 42))
-        screen.blit(font_small.render(f"Último: {ultimo}", True, (180, 180, 255)), (painel_x, y_inicio + 56))
-        screen.blit(font_small.render("Rival construindo no mesmo mapa", True, (150, 150, 150)), (painel_x, y_inicio + 76))
-        return y_inicio + 96
+        pad = painel_x + 10
+        screen.blit(font_small.render(f"{nome}", True, self._oponente.cor), (pad, y_inicio))
+        screen.blit(font_small.render(f"{builds}", True, (200, 200, 200)), (pad, y_inicio + 13))
+        screen.blit(font_small.render(f"{nivel}", True, (200, 200, 200)), (pad, y_inicio + 26))
+        screen.blit(font_small.render(f"${dinheiro:,}", True, (180, 180, 255)), (pad, y_inicio + 39))
+        screen.blit(font_small.render(f"Ultimo: {ultimo}", True, (180, 180, 255)), (pad, y_inicio + 52))
+        screen.blit(font_small.render("Rival no mesmo mapa", True, (150, 150, 150)), (pad, y_inicio + 65))
+        return y_inicio + 82
 
     def desenhar_hud_mercado(self, screen: pygame.Surface, font_small: pygame.font.Font,
-                              painel_x: int, y_inicio: int) -> None:
+                              painel_x: int, y_inicio: int, y_max: int | None = None) -> int:
         PAD = painel_x + 10;  LARGURA = 155
         LINHA_H = 13;         SPARK_H = 12
         y = y_inicio
+        compacto = y_max is not None and y_inicio + 145 > y_max
 
         pygame.draw.line(screen, (70,70,50), (PAD, y), (PAD+LARGURA, y), 1)
         y += 5
@@ -349,7 +351,7 @@ class GerenciadorNPCs:
             seta, sc = ("+", (80,220,80)) if var > 0.005 else ("-", (220,80,80)) if var < -0.005 else ("=", (160,160,160))
             screen.blit(font_small.render(seta, True, sc), (PAD+LARGURA-10, y))
             y += LINHA_H
-            if len(hist) >= 2:
+            if not compacto and len(hist) >= 2:
                 ams = hist[-20:];  mn = min(ams);  rng = max(max(ams)-mn, 1e-9)
                 pts = [(PAD + int(j*LARGURA/max(len(ams)-1,1)),
                         y + SPARK_H - int((v-mn)/rng*SPARK_H))
@@ -357,8 +359,9 @@ class GerenciadorNPCs:
                 pygame.draw.line(screen, (50,50,45), (PAD, y+SPARK_H), (PAD+LARGURA, y+SPARK_H), 1)
                 if len(pts) >= 2:
                     pygame.draw.lines(screen, cor, False, pts, 1)
-            y += SPARK_H + 6
+                y += SPARK_H + 6
 
         pygame.draw.line(screen, (70,70,50), (PAD, y), (PAD+LARGURA, y), 1)
         y += 4
         screen.blit(font_small.render(f"Lider: {mercado.lider}", True, (255,215,0)), (PAD, y))
+        return y + 14
