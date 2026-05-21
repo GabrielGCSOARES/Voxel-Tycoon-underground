@@ -186,16 +186,14 @@ class Vila:
         """Chamado pelo events.py quando o jogador constrói."""
         c = ConstrucaoViva(tipo=tipo, gx=gx, gy=gy, camada=camada, nivel=nivel)
         self.construcoes_vivas.append(c)
-        # Adiciona defensor automaticamente a cada 3 construções
-        if len(self.construcoes_vivas) % 3 == 0:
-            self._adicionar_defensor(gx, gy)
         return c
 
-    def _adicionar_defensor(self, gx: int, gy: int) -> None:
+    def comprar_defensor(self, tipo: str, gx: int, gy: int) -> Tropa:
+        """Cria um defensor permanente comprado pelo jogador."""
         from config import GRID_SIZE
-        tipo = random.choice(["defensor", "guardiao"])
         t = Tropa(tipo=tipo, x=float(gx*GRID_SIZE), y=float(gy*GRID_SIZE), defende=True)
         self.defensores.append(t)
+        return t
 
     def get_construcao(self, gx: int, gy: int, camada: str) -> ConstrucaoViva | None:
         for c in self.construcoes_vivas:

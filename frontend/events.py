@@ -2,7 +2,10 @@
 from __future__ import annotations
 import sys
 import pygame
-from config import CLICK_SOUND, COLS, CUSTOS, ITENS, ITENS_CAVERNA, MAP_WIDTH, RENDA_BASE, ROWS, WIDTH, XP_ITENS
+from config import (
+    CLICK_SOUND, COLS, CUSTOS, DEFENSORES_COMPRA, ITENS, ITENS_CAVERNA,
+    MAP_WIDTH, ROWS, WIDTH, XP_ITENS, calcular_renda_construcao,
+)
 from ui import desenhar_modal_upgrade
 
 
@@ -37,7 +40,9 @@ def processar_eventos(font, font_menu, estado, mundo, npcs, camera) -> None:
             elif estado.estado == "jogo":
                 if estado.construcao_selecionada:
                     _handle_modal(font, font_menu, mouse, estado, mundo)
-                elif mouse[0] < MAP_WIDTH:
+                elif mouse[0] >= MAP_WIDTH:
+                    _handle_painel(mouse, estado, mundo)
+                else:
                     _handle_mapa(mouse, estado, mundo, npcs, camera)
 
         if estado.estado == "jogo" and not estado.construcao_selecionada:
@@ -68,7 +73,16 @@ def _handle_modal(font, font_menu, pos, estado, mundo) -> None:
         grid_up = mundo.get_upgrades_ativo()
         grid_up[botoes["gy"]][botoes["gx"]] += 1
         n = botoes["nivel"]
-        estado.renda_passiva += RENDA_BASE[botoes["item"]] * (1.5**n - 1.5**(n-1))
+        estado.renda_passiva += (
+            calcular_renda_construcao(botoes["item"], n + 1)
+            - calcular_renda_construcao(botoes["item"], n)
+        )
+        c = estado.vila_jogador.get_construcao(botoes["gx"], botoes["gy"], mundo.camada_atual)
+        if c:
+            c.nivel = n + 1
+            pct_hp = c.pct_hp
+            c.hp_max *= 1.35
+            c.hp = max(c.hp, c.hp_max * pct_hp)
         estado.construcao_selecionada = None
         if CLICK_SOUND: CLICK_SOUND.play()
 
@@ -83,6 +97,8 @@ def _handle_mapa(pos, estado, mundo, npcs, camera) -> None:
 
     if tile == "elevador":
         _handle_elevador(gx, gy, estado, mundo)
+    elif tile == "base_inimiga":
+        estado.exibir_mensagem("Base inimiga gerando invasores!")
     elif tile != mundo.get_base_tile():
         # Clicou numa construção destruída? Tenta reconstruir
         c = estado.vila_jogador.get_construcao(gx, gy, mundo.camada_atual)
@@ -134,7 +150,7 @@ def _handle_construir(gx, gy, grid, grid_up, estado, mundo, npcs) -> None:
     else:
         grid[gy][gx] = item
         grid_up[gy][gx] = 1
-        estado.renda_passiva += RENDA_BASE[item]
+        estado.renda_passiva += calcular_renda_construcao(item, 1)
         npcs.adicionar_npc(mundo.camada_atual, gx, gy)
         # Registra na vila (para HP e recursos)
         estado.vila_jogador.registrar_construcao(item, gx, gy, mundo.camada_atual)
@@ -144,3 +160,34 @@ def _handle_construir(gx, gy, grid, grid_up, estado, mundo, npcs) -> None:
     estado.dinheiro -= CUSTOS[item]
     estado.ganhar_xp(XP_ITENS[item])
     if CLICK_SOUND: CLICK_SOUND.play()
+
+
+def _handle_painel(pos, estado, mundo) -> None:
+    if mundo.camada_atual != "superficie":
+        return
+
+    from ui import rects_botoes_defesa
+
+    for tipo, rect in rects_botoes_defesa(mundo).items():
+        if not rect.collidepoint(pos):
+            continue
+
+        info = DEFENSORES_COMPRA[tipo]
+        if estado.nivel < info["nivel_req"]:
+            estado.exibir_mensagem(f"Nivel {info['nivel_req']} necessario para {tipo}!")
+            return
+        if estado.dinheiro < info["custo"]:
+            estado.exibir_mensagem(f"Dinheiro insuficiente para {tipo}!")
+            return
+
+        construcoes = estado.vila_jogador.construcoes_intactas("superficie")
+        if construcoes:
+            base = construcoes[-1]
+            gx, gy = base.gx, base.gy
+        else:
+            gx, gy = COLS // 2, ROWS // 2
+        estado.dinheiro -= info["custo"]
+        estado.vila_jogador.comprar_defensor(tipo, gx, gy)
+        estado.exibir_mensagem(f"{tipo.capitalize()} contratado!")
+        if CLICK_SOUND: CLICK_SOUND.play()
+        return

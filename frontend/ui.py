@@ -6,9 +6,9 @@ import math
 import pygame
 
 from config import (
-    BRANCO, CINZA, CUSTOS, DOURADO, HEIGHT,
+    BRANCO, CINZA, CUSTOS, DEFENSORES_COMPRA, DOURADO, HEIGHT,
     ITENS, ITENS_CAVERNA, MAP_WIDTH, PANEL_WIDTH,
-    RENDA_BASE, VERDE, WIDTH, screen,
+    VERDE, WIDTH, calcular_renda_construcao, screen,
 )
 
 # ── Constantes de layout ─────────────────────────────────
@@ -100,7 +100,41 @@ def desenhar_painel(font, font_small, estado, mundo, npcs) -> int:
             screen.blit(font_small.render(f"{i+1}-{item.upper()}  ${custo:,}", True, cor),
                         (PANEL_X, Y_CONSTRUIR + 26 + i * ITEM_H))
 
-    return Y_CONSTRUIR + 26 + len(lista) * ITEM_H + 12
+    y = Y_CONSTRUIR + 26 + len(lista) * ITEM_H + 12
+    if mundo.camada_atual == "superficie":
+        y = desenhar_botoes_defesa(font_small, estado, mundo, y)
+
+    return y
+
+
+def rects_botoes_defesa(mundo) -> dict[str, pygame.Rect]:
+    if mundo.camada_atual != "superficie":
+        return {}
+    y_base = Y_CONSTRUIR + 26 + len(ITENS) * ITEM_H + 34
+    return {
+        tipo: pygame.Rect(PANEL_X, y_base + i * 28, 155, 22)
+        for i, tipo in enumerate(DEFENSORES_COMPRA)
+    }
+
+
+def desenhar_botoes_defesa(font_small, estado, mundo, y: int) -> int:
+    if not font_small:
+        return y
+    screen.blit(font_small.render("DEFESA", True, (150, 150, 150)), (PANEL_X, y))
+    y += 24
+    for tipo, rect in rects_botoes_defesa(mundo).items():
+        info = DEFENSORES_COMPRA[tipo]
+        bloqueado = estado.nivel < info["nivel_req"]
+        sem_dinheiro = estado.dinheiro < info["custo"]
+        cor = CINZA if bloqueado or sem_dinheiro else (55, 120, 75)
+        pygame.draw.rect(screen, cor, rect, border_radius=4)
+        pygame.draw.rect(screen, (120, 150, 120), rect, 1, border_radius=4)
+        texto = f"{tipo.upper()} ${info['custo']:,}"
+        if bloqueado:
+            texto = f"{tipo.upper()} NV.{info['nivel_req']}"
+        screen.blit(font_small.render(texto, True, BRANCO), (rect.x + 6, rect.y + 4))
+        y = rect.bottom + 6
+    return y + 8
 
 
 # ── Modal de upgrade ─────────────────────────────────────
@@ -115,10 +149,9 @@ def desenhar_modal_upgrade(font, font_menu, estado) -> dict | None:
     pygame.draw.rect(screen, (20, 25, 30), (cx, cy, W, H), border_radius=15)
     pygame.draw.rect(screen, DOURADO,      (cx, cy, W, H), 3, border_radius=15)
 
-    base      = RENDA_BASE.get(item, 0)
-    renda_at  = base * (1.5 ** (nivel_atual - 1)) * 60
-    renda_nx  = base * (1.5 **  nivel_atual)      * 60
-    custo_up  = CUSTOS[item] * (2 ** nivel_atual)
+    renda_at  = calcular_renda_construcao(item, nivel_atual) * 60
+    renda_nx  = calcular_renda_construcao(item, nivel_atual + 1) * 60
+    custo_up  = int(CUSTOS[item] * (2.2 ** nivel_atual))
 
     if font_menu:
         screen.blit(font_menu.render(item.upper(), True, BRANCO),                         (cx+20, cy+20))

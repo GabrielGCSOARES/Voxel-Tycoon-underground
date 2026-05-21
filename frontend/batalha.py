@@ -31,6 +31,19 @@ DANO_POR_FRAME     = 0.18   # dano que um atacante faz por frame ao chegar no al
 DANO_DEFENSOR      = 0.12   # dano que defensor faz por frame ao atacante
 ALCANCE_DEFENSOR   = 120    # pixels — defensor ataca se atacante estiver perto
 VELOCIDADE_REBUILD = 0.4    # pixels por frame do NPC reconstrutor
+BASE_INIMIGA_TILE  = "base_inimiga"
+
+
+class BaseInimiga:
+    """Construção temporária que marca de onde a horda nasce."""
+
+    __slots__ = ("gx", "gy", "x", "y")
+
+    def __init__(self, gx: int, gy: int) -> None:
+        self.gx = gx
+        self.gy = gy
+        self.x = gx * GRID_SIZE + GRID_SIZE // 2
+        self.y = gy * GRID_SIZE + GRID_SIZE // 2
 
 
 class NPCAtacante:
@@ -67,7 +80,7 @@ class NPCAtacante:
         if dist < GRID_SIZE * 0.6:
             self.chegou = True
             # Aplica dano à construção
-            destruida = self.alvo.sofrer_dano(DANO_POR_FRAME)
+            destruida = self.alvo.sofrer_dano(DANO_POR_FRAME * (self.tropa.dano / 8.0))
             if destruida:
                 # Remove do grid visualmente
                 try:
@@ -195,6 +208,7 @@ class GerenciadorBatalha:
         self._atacantes:     list[NPCAtacante]    = []
         self._reconstrutores:list[NPCReconstrutor]= []
         self._defensores_ativos: list[Tropa]      = []
+        self._base_inimiga: BaseInimiga | None     = None
         self.em_invasao:     bool                  = False
         self.resultado_pendente: dict | None       = None
         self._invasoes_completadas: int            = 0
@@ -217,7 +231,7 @@ class GerenciadorBatalha:
             self._timer -= 1
             if self._timer <= 0:
                 self._timer = INTERVALO_INVASAO
-                self._tentar_invasao(vila, grid, estado)
+                self._tentar_invasao(vila, grid, mundo, estado)
 
     def desenhar(self, screen: pygame.Surface, camera, camada_atual: str) -> None:
         if camada_atual != "superficie":
@@ -240,13 +254,15 @@ class GerenciadorBatalha:
         vivos = sum(1 for a in self._atacantes if a.vivo)
         if self.em_invasao:
             screen.blit(font_small.render(f"Inimigos: {vivos}", True, (220,80,80)), (PAD, y)); y += 13
+            if self._base_inimiga:
+                screen.blit(font_small.render("Base inimiga ativa", True, (220,120,80)), (PAD, y)); y += 13
         recons = sum(1 for r in self._reconstrutores if not r.concluido)
         if recons:
             screen.blit(font_small.render(f"Reconstruindo: {recons}", True, (60,160,220)), (PAD, y)); y += 13
         return y + 4
 
     # ── Internos ─────────────────────────────────────────
-    def _tentar_invasao(self, vila: Vila, grid, estado) -> None:
+    def _tentar_invasao(self, vila: Vila, grid, mundo, estado) -> None:
         if not vila.pode_ser_invadida():
             return
         construcoes = vila.construcoes_intactas("superficie")
@@ -255,23 +271,25 @@ class GerenciadorBatalha:
         chance = CHANCE_INVASAO_BASE + estado.nivel * 0.01
         if random.random() > chance:
             return
-        # Gera atacantes
-        n_atacantes = random.randint(2, 4 + estado.nivel // 2)
-        tipos_pool  = ["saqueador"] * 3 + ["guerreiro"] * 2 + ["arqueiro"]
+        self._base_inimiga = self._criar_base_inimiga(grid, mundo)
+
+        # Gera atacantes: quantidade e força sobem com o nível do jogador.
+        n_atacantes = random.randint(3 + estado.nivel // 2, 5 + estado.nivel)
+        tipos_pool  = ["saqueador"] * 3 + ["guerreiro"] * (1 + estado.nivel // 3) + ["arqueiro"] * (1 + estado.nivel // 4)
+        escala = 1.0 + max(0, estado.nivel - 1) * 0.16
         for _ in range(n_atacantes):
             alvo = random.choice(construcoes)
-            # Posição inicial: borda aleatória do mapa
-            borda = random.choice(["top","bot","left","right"])
-            if borda == "top":
-                tx, ty = random.randint(0,COLS-1)*GRID_SIZE, 0
-            elif borda == "bot":
-                tx, ty = random.randint(0,COLS-1)*GRID_SIZE, (ROWS-1)*GRID_SIZE
-            elif borda == "left":
-                tx, ty = 0, random.randint(0,ROWS-1)*GRID_SIZE
+            if self._base_inimiga:
+                tx = self._base_inimiga.x + random.randint(-12, 12)
+                ty = self._base_inimiga.y + random.randint(-12, 12)
             else:
-                tx, ty = (COLS-1)*GRID_SIZE, random.randint(0,ROWS-1)*GRID_SIZE
+                tx, ty = random.randint(0,COLS-1)*GRID_SIZE, 0
             tipo  = random.choice(tipos_pool)
             tropa = Tropa(tipo=tipo, x=float(tx), y=float(ty))
+            tropa.hp_max *= escala
+            tropa.hp = tropa.hp_max
+            tropa.dano *= escala
+            tropa.velocidade *= 1.0 + min(0.35, estado.nivel * 0.015)
             self._atacantes.append(NPCAtacante(tropa, alvo))
 
         # Ativa defensores da vila
@@ -282,7 +300,17 @@ class GerenciadorBatalha:
         self.em_invasao       = True
         vila.em_invasao       = True
         vila.cooldown_invasao = INTERVALO_INVASAO
-        estado.exibir_mensagem("!! INVASAO DETECTADA !!")
+        estado.exibir_mensagem("Base inimiga detectada! Invasao a caminho!")
+
+    def _criar_base_inimiga(self, grid, mundo) -> BaseInimiga | None:
+        base_tile = mundo.get_base_tile()
+        for _ in range(80):
+            gx = random.randint(2, COLS - 3)
+            gy = random.randint(2, ROWS - 3)
+            if grid[gy][gx] == base_tile:
+                grid[gy][gx] = BASE_INIMIGA_TILE
+                return BaseInimiga(gx, gy)
+        return None
 
     def _tick_invasao(self, vila: Vila, grid, mundo, estado) -> None:
         construcoes_destruidas = 0
@@ -311,7 +339,7 @@ class GerenciadorBatalha:
                     menor_dist = dist
                     alvo_atk   = atk
             if alvo_atk:
-                alvo_atk.tropa.sofrer_dano(DANO_DEFENSOR)
+                alvo_atk.tropa.sofrer_dano(DANO_DEFENSOR * (defensor.dano / 10.0))
                 defensor.sofrer_dano(DANO_POR_FRAME * 0.5)
                 # Move defensor em direção ao atacante
                 dx = alvo_atk.tropa.x - defensor.x
@@ -332,11 +360,12 @@ class GerenciadorBatalha:
         if todos_mortos or todos_retirados:
             vivos_def = sum(1 for d in self._defensores_ativos if d.vivo)
             vitoria_defesa = vivos_def > 0 or construcoes_destruidas == 0
-            self._finalizar_invasao(vila, estado, construcoes_destruidas, vitoria_defesa)
+            self._finalizar_invasao(vila, estado, grid, mundo, construcoes_destruidas, vitoria_defesa)
 
-    def _finalizar_invasao(self, vila: Vila, estado, destruidas: int, vitoria: bool) -> None:
+    def _finalizar_invasao(self, vila: Vila, estado, grid, mundo, destruidas: int, vitoria: bool) -> None:
         self.em_invasao = False
         vila.em_invasao = False
+        self._remover_base_inimiga(grid, mundo)
         self._atacantes.clear()
         self._defensores_ativos.clear()
         self._invasoes_completadas += 1
@@ -356,6 +385,14 @@ class GerenciadorBatalha:
             "destruidas": destruidas,
             "invasoes_total": self._invasoes_completadas,
         }
+
+    def _remover_base_inimiga(self, grid, mundo) -> None:
+        if self._base_inimiga:
+            try:
+                grid[self._base_inimiga.gy][self._base_inimiga.gx] = mundo.get_base_tile()
+            except (IndexError, AttributeError):
+                pass
+        self._base_inimiga = None
 
     def _tick_reconstrutores(self, grid, mundo) -> None:
         for r in self._reconstrutores:

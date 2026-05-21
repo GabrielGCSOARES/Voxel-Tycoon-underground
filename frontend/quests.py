@@ -19,6 +19,7 @@ class Quest:
     recompensa_xp:       int   = 0
     recompensa_madeira:  float = 0.0
     recompensa_pedra:    float = 0.0
+    nivel_req: int = 1
     # Estado
     concluida:   bool = False
     notificada:  bool = False   # já mostrou a mensagem de conclusão
@@ -161,6 +162,16 @@ TODAS_AS_QUESTS: list[dict] = [
         "recompensa_madeira": 200,
         "recompensa_pedra": 200,
     },
+    {
+        "id": "construcoes_10",
+        "titulo": "Cidade Ativa",
+        "descricao": "Tenha 10 construcoes no total",
+        "meta": 10,
+        "recompensa_dinheiro": 12_000,
+        "recompensa_xp": 900,
+        "recompensa_madeira": 120,
+        "recompensa_pedra": 120,
+    },
 ]
 
 
@@ -171,7 +182,30 @@ class GerenciadorQuests:
     """
 
     def __init__(self) -> None:
-        self.quests: list[Quest] = [Quest(**q) for q in TODAS_AS_QUESTS]
+        nivel_por_quest = {
+            "primeira_casa": 1,
+            "tres_fazendas": 1,
+            "madeira_100": 1,
+            "cinco_construcoes": 2,
+            "pedra_100": 2,
+            "dinheiro_10k": 2,
+            "primeiro_palacio": 3,
+            "primeira_defesa": 3,
+            "reconstruir_1": 3,
+            "primeira_mineracao": 4,
+            "tres_cavernosos": 4,
+            "derrotar_invasao": 4,
+            "nivel_5": 5,
+            "construcoes_10": 5,
+            "nivel_10": 5,
+        }
+        quests = []
+        for i, q in enumerate(TODAS_AS_QUESTS):
+            dados = dict(q)
+            dados.setdefault("nivel_req", nivel_por_quest.get(dados["id"], i // 3 + 1))
+            quests.append(Quest(**dados))
+        self.quests: list[Quest] = quests
+        self._nivel_atual = 1
         self._contadores: dict[str, int] = {
             "casa": 0, "fazenda": 0, "palacio": 0,
             "mineracao": 0, "total_sup": 0, "total_cav": 0,
@@ -197,6 +231,7 @@ class GerenciadorQuests:
     # ── Tick principal ────────────────────────────────────
     def tick(self, estado) -> None:
         """Chama a cada frame com o EstadoJogo."""
+        self._nivel_atual = estado.nivel
         self._atualizar_progresso(estado)
         self._verificar_conclusoes(estado)
 
@@ -211,6 +246,7 @@ class GerenciadorQuests:
             "cinco_construcoes":  cnt.get("total_sup", 0),
             "primeira_mineracao": cnt.get("mineracao", 0),
             "tres_cavernosos":    cnt.get("total_cav", 0),
+            "construcoes_10":      cnt.get("total_sup", 0) + cnt.get("total_cav", 0),
             "madeira_100":        int(vila.madeira),
             "pedra_100":          int(vila.pedra),
             "primeira_defesa":    cnt.get("invasoes_repelidas", 0),
@@ -250,7 +286,11 @@ class GerenciadorQuests:
                 self.notificacoes.append((q.titulo, " + ".join(partes)))
 
     def quests_ativas(self) -> list[Quest]:
-        return [q for q in self.quests if not q.concluida][:4]
+        ativas = [
+            q for q in self.quests
+            if not q.concluida and q.nivel_req <= self._nivel_atual
+        ]
+        return ativas[:3]
 
     def quests_concluidas(self) -> list[Quest]:
         return [q for q in self.quests if q.concluida]

@@ -53,7 +53,8 @@ def carregar_imagens():
     
     # Fallbacks iniciais
     itens_completos = ["grama","pedra","casa","fazenda","silo","cachoeira","palacio","elevador",
-                       "mineracao", "cristal", "forja", "laboratorio", "reator", "cripto"]
+                       "mineracao", "cristal", "forja", "laboratorio", "reator", "cripto",
+                       "base_inimiga"]
     for k in itens_completos:
         surf = pygame.Surface((GRID_SIZE, GRID_SIZE), pygame.SRCALPHA)
         if k == "grama": surf.fill((34, 139, 34))
@@ -123,6 +124,15 @@ def carregar_imagens():
             pygame.draw.circle(surf, (200, 255, 200), (24, 24), 4)
             # Fio conectado
             pygame.draw.line(surf, (0, 0, 0), (24, 8), (24, 0), 2)
+
+        elif k == "base_inimiga":
+            surf.fill((0, 0, 0, 0))
+            pygame.draw.rect(surf, (72, 44, 44), (6, 18, 36, 24), border_radius=3)
+            pygame.draw.rect(surf, (35, 25, 25), (14, 27, 20, 15), border_radius=2)
+            pygame.draw.polygon(surf, (95, 55, 55), [(3,18), (24,5), (45,18)])
+            pygame.draw.rect(surf, (150, 40, 35), (30, 7, 4, 13))
+            pygame.draw.polygon(surf, (210, 60, 50), [(34,7), (44,11), (34,15)])
+            pygame.draw.rect(surf, (30, 20, 20), (10, 32, 28, 5))
 
         elif k == "cripto":
             surf.fill((0, 0, 0, 0))
@@ -195,6 +205,27 @@ ITENS   = ["casa", "fazenda", "silo", "cachoeira", "palacio"]
 CUSTOS  = {"casa":100, "fazenda":150, "elevador":250, "silo":200, "cachoeira":300, "palacio":1000}
 XP_ITENS= {"casa":20, "fazenda":40, "elevador":50, "silo":80, "cachoeira":120, "palacio":500}
 RENDA_BASE = {"casa": 0.02, "fazenda": 0.05, "elevador": 0.0, "silo": 0.1, "cachoeira": 0.2, "palacio": 1.0}
+
+MULTIPLICADORES_RENDA_NIVEL = {
+    1: 0.25,
+    2: 0.65,
+    3: 1.20,
+}
+
+def multiplicador_renda(nivel: int) -> float:
+    if nivel <= 1:
+        return MULTIPLICADORES_RENDA_NIVEL[1]
+    if nivel in MULTIPLICADORES_RENDA_NIVEL:
+        return MULTIPLICADORES_RENDA_NIVEL[nivel]
+    return MULTIPLICADORES_RENDA_NIVEL[3] * (1.45 ** (nivel - 3))
+
+def calcular_renda_construcao(item: str, nivel: int) -> float:
+    return RENDA_BASE.get(item, 0.0) * multiplicador_renda(nivel)
+
+DEFENSORES_COMPRA = {
+    "defensor": {"custo": 350, "nivel_req": 1},
+    "guardiao": {"custo": 900, "nivel_req": 3},
+}
 
 ITENS_CAVERNA = ["mineracao", "cristal", "forja", "laboratorio", "reator", "cripto"]
 
